@@ -1,0 +1,24 @@
+[package]
+name = "toml-comment-derive"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = [ "parsing" ] }
+darling = "0.20"
+regex = "1"
+
+[dev-dependencies]
+toml-comment = {version = "*", path = "../lib"}
+toml = "*"
+serde = { version = "*", features = ["derive"] }

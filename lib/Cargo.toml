@@ -1,0 +1,18 @@
+[package]
+name = "toml-comment"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+toml = "*"
+serde = { version = "*", features = ["derive"] }
+toml-comment-derive = { version = "*", path = "../derive" }
+bytes = "*"
+
+[dev-dependencies]
+serde_repr = "0.1"

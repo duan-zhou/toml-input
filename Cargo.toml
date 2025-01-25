@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = [
+    "lib",
+    "derive",
+]
+
+[workspace.package]
+version = "0.12.1"
+edition = "2021"
+authors = ["duan zhou <duan_zhou@outlook.com>"]
+license = "MIT"
+description = "A lib help generate toml example"
+keywords = ["toml", "config", "document"]
+categories = [ "parser-implementations", "parsing", "config" ]
