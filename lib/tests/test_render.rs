@@ -52,3 +52,34 @@ fn test_enum() {
     let text = Test::schema_to_string();
     println!("{}", text);
 }
+
+
+#[test]
+fn test_enum_tuple() {
+    /// comment `Test`
+    #[derive(Debug, TomlSchema, Serialize, Default)]
+    struct Test {
+        /// comment `a`
+        a: i32,
+        /// comment `b`
+        b: TestEnum,
+    }
+
+    /// comment `Test`
+    #[derive(Debug, TomlSchema, Serialize)]
+    enum TestEnum {
+        /// comment `A`
+        A(String),
+        /// comment `B`
+        B(i32),
+    }
+
+    impl Default for TestEnum {
+        fn default() -> Self {
+            TestEnum::B(1)
+        }
+    }
+
+    let text = Test::schema_to_string();
+    println!("test_enum_typle:\n{}", text);
+}

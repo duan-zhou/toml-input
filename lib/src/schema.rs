@@ -1,6 +1,63 @@
 use serde::Serialize;
 
-use crate::{group::SectionMetaGroup, util};
+use crate::{
+    block::{BlockSchema, BlockValueSchema},
+    group::SectionMetaGroup,
+    util, TAG,
+};
+
+#[derive(Debug, Clone)]
+pub struct TupleEnum {
+    pub wrap_type: String,
+    pub inner_type: String,
+    pub inner_default: String,
+    pub docs: String,
+    pub variants: Vec<TupleVariant>,
+}
+
+impl TupleEnum {
+    pub fn into_block_schemas(self, block_ident: &str) -> Vec<BlockSchema> {
+        let TupleEnum {
+            wrap_type,
+            inner_type,
+            inner_default,
+            docs,
+            variants,
+        } = self;
+        let mut data = Vec::new();
+        for variant in variants {
+            let TupleVariant {
+                ident: variant_ident,
+                docs: variant_docs,
+                value: variant_value,
+            } = variant;
+            let value_schema = match variant_value {
+                TupleEnumValue::Primary(pt) => BlockValueSchema::Primary(pt),
+                TupleEnumValue::UnitEnum(ut) => BlockValueSchema::UnitEnum(ut),
+            };
+            let schema = BlockSchema {
+                ident: block_ident.to_string() + TAG + &variant_ident,
+                docs: variant_docs,
+                value: value_schema,
+                hide: false,
+            };
+            data.push(schema);
+        }
+        return data;
+    }
+}
+#[derive(Debug, Clone)]
+pub struct TupleVariant {
+    pub ident: String,
+    pub docs: String,
+    pub value: TupleEnumValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum TupleEnumValue {
+    Primary(PrimaryType),
+    UnitEnum(UnitEnum),
+}
 
 #[derive(Debug, Clone)]
 pub struct UnitEnum {
@@ -102,18 +159,20 @@ impl PrimaryType {
 #[derive(Debug, Clone)]
 pub enum Schema {
     None,
+    Primary(PrimaryType),
     Struct(Struct),
     UnitEnum(UnitEnum),
-    Primary(PrimaryType),
+    TupleEnum(TupleEnum),
 }
 
 impl Schema {
     pub fn set_wrap_type(&mut self, new: String) -> Option<String> {
         match self {
             Schema::None => None,
+            Schema::Primary(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
             Schema::Struct(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
             Schema::UnitEnum(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
-            Schema::Primary(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
+            Schema::TupleEnum(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
         }
     }
 }
@@ -172,7 +231,13 @@ impl_type_info_primary!(i16, "i16");
 impl_type_info_primary!(i32, "i32");
 impl_type_info_primary!(i64, "i64");
 impl_type_info_primary!(isize, "isize");
+impl_type_info_primary!(u8, "u8");
+impl_type_info_primary!(u16, "u16");
+impl_type_info_primary!(u32, "u32");
+impl_type_info_primary!(u64, "u64");
 impl_type_info_primary!(usize, "usize");
+impl_type_info_primary!(f32, "f32");
+impl_type_info_primary!(f64, "f64");
 
 impl<T: TomlSchema> TomlSchema for Option<T> {
     fn schema() -> Schema {

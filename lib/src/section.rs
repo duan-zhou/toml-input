@@ -187,7 +187,6 @@ impl Section {
             text = comment.render()?;
         }
         util::append_line(&mut text);
-        println!("text: {}", text);
         let (left, right) = self.type_.tag();
         let key = &self.key;
         text = format!("{text}{left}{key}{right}");

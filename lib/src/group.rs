@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use toml::Value;
 
-use crate::{block::{BlockMeta, BlockSchema, ValueSchema}, comment::{Comment, CommentType}, error::Error, schema::{Schema, Struct, StructField}, section::{Section, SectionType}, ROOT_KEY};
+use crate::{block::{BlockMeta, BlockSchema, BlockValueSchema},  error::Error, schema::{Schema, Struct, StructField}, section::{Section, SectionMeta, SectionSchema}, ROOT_KEY};
 use crate::TAG;
 
 #[derive(Debug, Clone)]
@@ -98,8 +98,8 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
         schema,
     } = field;
     let key = format!("{section_key}{TAG}{ident}");
-    let fn_block_meta = |value: ValueSchema| {
-        let schema = BlockSchema { ident, docs, value };
+    let fn_block_meta = |value: BlockValueSchema| {
+        let schema = BlockSchema { ident, docs, value, hide: false };
         BlockMeta {
             key: key.clone(),
             schema,
@@ -110,11 +110,15 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
     match schema {
         Schema::None => {}
         Schema::Primary(pt) => {
-            let value = ValueSchema::Primary(pt);
+            let value = BlockValueSchema::Primary(pt);
             blocks.push(fn_block_meta(value));
         }
         Schema::UnitEnum(ut) => {
-            let value = ValueSchema::UnitEnum(ut);
+            let value = BlockValueSchema::UnitEnum(ut);
+            blocks.push(fn_block_meta(value));
+        }
+        Schema::TupleEnum(tt) => {
+            let value = BlockValueSchema::TupleEnum(tt);
             blocks.push(fn_block_meta(value));
         }
         Schema::Struct(st) => {
@@ -124,78 +128,6 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
         }
     }
     (sections, blocks)
-}
-
-
-#[derive(Debug, Clone)]
-pub struct SectionSchema {
-    pub wrap_type: String,
-    pub inner_type: String,
-    pub inner_default: String,
-    pub docs: String,
-}
-
-impl SectionSchema {
-    pub fn into_comment(self) -> Comment {
-        let SectionSchema {
-            wrap_type,
-            inner_type,
-            inner_default,
-            docs,
-        } = self;
-        Comment {
-            define_docs: docs,
-            field_docs: String::new(),
-            wrap_type,
-            inner_type,
-            inner_default,
-            type_: CommentType::Section,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SectionMeta {
-    pub key: String,
-    pub schema: SectionSchema,
-    pub blocks: Vec<BlockMeta>,
-    pub docs: String,
-}
-
-impl SectionMeta {
-    pub fn into_section(self, id: usize) -> Section {
-        let SectionMeta {
-            key,
-            schema,
-            docs,
-            blocks: blocks_meta,
-        } = self;
-        let mut comment = schema.into_comment();
-        if key == ROOT_KEY {
-            comment.type_ = CommentType::Root;
-        }
-        comment.field_docs = docs;
-        let mut blocks = Vec::new();
-        let section_id = id;
-        for (i, block) in blocks_meta.into_iter().enumerate() {
-            blocks.append(&mut block.into_blocks(i, section_id));
-        }
-        let type_ = if comment.wrap_type == "Vec" {
-            SectionType::Array
-        } else if  key == ROOT_KEY {
-            SectionType::Root
-        } else {
-            SectionType::Table
-        };
-        Section {
-            id,
-            key,
-            comment: Some(comment),
-            type_,
-            hide: false,
-            blocks,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

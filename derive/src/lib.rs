@@ -51,8 +51,16 @@ fn quote_enum(ident: &Ident, attrs: &[Attribute], variants: Vec<VariantRaw>) -> 
         let VariantRaw {
             ident: variant_ident,
             attrs,
+            fields,
             discriminant,
         } = variant;
+        if fields.style.is_unit() {
+
+        } else if fields.style.is_tuple() {
+
+        } else {
+            panic!("variant struct not supported!")
+        }
         let repr_value = discriminant
             .map(|token| {
                 let s = token.into_token_stream();
@@ -89,6 +97,14 @@ fn quote_enum(ident: &Ident, attrs: &[Attribute], variants: Vec<VariantRaw>) -> 
         schema::Schema::UnitEnum(root)
     };
     enum_token
+}
+
+fn quote_unit_enum() -> TokenStream {
+    unimplemented!()
+}
+
+fn quote_tuple_enum() -> TokenStream {
+    unimplemented!()
 }
 
 fn quote_struct(ident: &Ident, attrs: &[Attribute], fields: Fields<FieldRaw>) -> TokenStream {
@@ -131,7 +147,7 @@ fn quote_struct(ident: &Ident, attrs: &[Attribute], fields: Fields<FieldRaw>) ->
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(supports(struct_named, enum_unit), forward_attrs(doc, serde))]
+#[darling(supports(struct_named, enum_unit, enum_tuple), forward_attrs(doc, serde))]
 struct StructRaw {
     ident: Ident,
     attrs: Vec<Attribute>,
@@ -151,8 +167,16 @@ struct FieldRaw {
 struct VariantRaw {
     ident: Ident,
     attrs: Vec<Attribute>,
+    fields: Fields<VariantTupleRaw>,
     discriminant: Option<syn::Expr>,
 }
+
+#[derive(Debug, FromField)]
+#[darling(forward_attrs(doc, serde))]
+struct VariantTupleRaw {
+    ty: Type,
+}
+
 
 fn parse_docs(attrs: &[Attribute]) -> String {
     let mut docs = Vec::new();

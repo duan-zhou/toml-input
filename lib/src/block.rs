@@ -3,14 +3,15 @@ use toml::Value;
 use crate::{
     comment::{Comment, CommentType},
     error::Error,
-    schema::{PrimaryType, UnitEnum},
+    schema::{PrimaryType, TupleEnum, UnitEnum},
     section::Section,
     util, BANG_COMMENT,
 };
 
 #[derive(Debug, Clone)]
-pub enum ValueSchema {
+pub enum BlockValueSchema {
     UnitEnum(UnitEnum),
+    TupleEnum(TupleEnum),
     Primary(PrimaryType),
 }
 
@@ -18,18 +19,20 @@ pub enum ValueSchema {
 pub struct BlockSchema {
     pub ident: String,
     pub docs: String,
-    pub value: ValueSchema,
+    pub hide: bool,
+    pub value: BlockValueSchema,
 }
 
 impl BlockSchema {
     pub fn into_blocks(self) -> Vec<Block> {
-        let BlockSchema { ident, docs, value } = self;
+        let BlockSchema { ident, docs, value, hide } = self;
         let mut block = Block::new(0, 0);
         block.ident = ident;
+        block.hide = hide;
         let mut comment = Comment::default();
         comment.field_docs = docs;
         match value {
-            ValueSchema::Primary(pt) => {
+            BlockValueSchema::Primary(pt) => {
                 comment.define_docs = pt.docs;
                 comment.wrap_type = pt.wrap_type;
                 comment.inner_type = pt.inner_type;
@@ -40,7 +43,7 @@ impl BlockSchema {
                 block.value = pt.inner_default;
                 return vec![block];
             }
-            ValueSchema::UnitEnum(ut) => {
+            BlockValueSchema::UnitEnum(ut) => {
                 let UnitEnum {
                     wrap_type,
                     inner_type,
@@ -60,15 +63,24 @@ impl BlockSchema {
                     comment1.define_docs = variant.docs;
                     if comment1.inner_default.parse::<isize>().is_ok() {
                         let value = format!("{}", variant.value);
-                        block1.hide = comment.inner_default != value;
+                        block1.hide = hide || comment.inner_default != value;
                         block1.value = value;
                     } else {
-                        block1.hide = comment.inner_default != variant.tag;
+                        block1.hide = hide || comment.inner_default != variant.tag;
                         block1.value = variant.tag;
                     }
                     block1.comment = Some(comment1);
                     block1.type_ = BlockType::FieldVariant;
                     blocks.push(block1);
+                }
+                return blocks;
+            }
+
+            BlockValueSchema::TupleEnum(tt) => {
+                let schemas = tt.into_block_schemas(&block.ident);
+                let mut blocks = Vec::new();
+                for schema in schemas {
+                    blocks.append(&mut schema.into_blocks());
                 }
                 return blocks;
             }

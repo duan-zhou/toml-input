@@ -38,3 +38,25 @@ fn test_enum() {
     let right = format!("{:?}", schema);
     assert_eq!(left, right);
 }
+
+#[test]
+fn test_enum_tuple() {
+    #[derive(Serialize, TomlSchema)]
+    /// comment Test
+    enum Test {
+        /// comment A
+        A(String),
+        /// comment B
+        B(i32),
+    }
+
+    impl Default for Test {
+        fn default() -> Self {
+            Test::A("hello".to_string())
+        }
+    }
+    let schema = Test::schema();
+    let left = r#"UnitEnum(UnitEnum { wrap_type: "", inner_type: "Test", inner_default: "\"A\"", docs: " comment Test", variants: [UnitVariant { tag: "A", docs: " comment A", value: 0 }, UnitVariant { tag: "B", docs: " comment B", value: 1 }] })"#;
+    let right = format!("{:?}", schema);
+    assert_eq!(left, right);
+}
