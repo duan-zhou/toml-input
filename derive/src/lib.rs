@@ -51,16 +51,8 @@ fn quote_enum(ident: &Ident, attrs: &[Attribute], variants: Vec<VariantRaw>) -> 
         let VariantRaw {
             ident: variant_ident,
             attrs,
-            fields,
             discriminant,
         } = variant;
-        if fields.style.is_unit() {
-
-        } else if fields.style.is_tuple() {
-
-        } else {
-            panic!("variant struct not supported!")
-        }
         let repr_value = discriminant
             .map(|token| {
                 let s = token.into_token_stream();
@@ -79,7 +71,7 @@ fn quote_enum(ident: &Ident, attrs: &[Attribute], variants: Vec<VariantRaw>) -> 
         let variant_token = quote! {
             let mut variant = schema::UnitVariant::empty();
             variant.tag = format!("\"{}\"", #variant_name);
-            variant.docs = #variant_docs.trim().to_string();
+            variant.docs = #variant_docs.to_string();
             variant.value = #repr_value;
             root.variants.push(variant);
         };
@@ -91,20 +83,12 @@ fn quote_enum(ident: &Ident, attrs: &[Attribute], variants: Vec<VariantRaw>) -> 
         root.wrap_type = "".to_string();
         root.inner_type = #inner_type.to_string();
         root.inner_default = util::value_to_string(&default).unwrap();
-        root.docs = #enum_docs.trim().to_string();
+        root.docs = #enum_docs.to_string();
         root.variants = Vec::new();
         #(#tokens)*
         schema::Schema::UnitEnum(root)
     };
     enum_token
-}
-
-fn quote_unit_enum() -> TokenStream {
-    unimplemented!()
-}
-
-fn quote_tuple_enum() -> TokenStream {
-    unimplemented!()
 }
 
 fn quote_struct(ident: &Ident, attrs: &[Attribute], fields: Fields<FieldRaw>) -> TokenStream {
@@ -125,7 +109,7 @@ fn quote_struct(ident: &Ident, attrs: &[Attribute], fields: Fields<FieldRaw>) ->
         let field_token = quote! {
             let mut field = schema::StructField::empty();
             field.ident = #field_name.to_string();
-            field.docs = #field_docs.trim().to_string();
+            field.docs = #field_docs.to_string();
             field.flatten = #field_flatten;
             field.schema = <#ty as schema::TomlSchema>::schema();
             root.fields.push(field);
@@ -138,7 +122,7 @@ fn quote_struct(ident: &Ident, attrs: &[Attribute], fields: Fields<FieldRaw>) ->
         root.wrap_type = "".to_string();
         root.inner_type = #inner_type.to_string();
         root.inner_default = util::value_to_string(&default).unwrap();
-        root.docs = #struct_docs.trim().to_string();
+        root.docs = #struct_docs.to_string();
         root.fields = Vec::new();
         #(#tokens)*
         schema::Schema::Struct(root)
@@ -167,16 +151,8 @@ struct FieldRaw {
 struct VariantRaw {
     ident: Ident,
     attrs: Vec<Attribute>,
-    fields: Fields<VariantTupleRaw>,
     discriminant: Option<syn::Expr>,
 }
-
-#[derive(Debug, FromField)]
-#[darling(forward_attrs(doc, serde))]
-struct VariantTupleRaw {
-    ty: Type,
-}
-
 
 fn parse_docs(attrs: &[Attribute]) -> String {
     let mut docs = Vec::new();
@@ -194,5 +170,5 @@ fn parse_docs(attrs: &[Attribute]) -> String {
             }
         }
     }
-    docs.join("\n").trim_end().to_string()
+    docs.join("\n").to_string()
 }

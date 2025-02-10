@@ -1,63 +1,9 @@
 use serde::Serialize;
 
 use crate::{
-    block::{BlockSchema, BlockValueSchema},
     group::SectionMetaGroup,
-    util, TAG,
+    util
 };
-
-#[derive(Debug, Clone)]
-pub struct TupleEnum {
-    pub wrap_type: String,
-    pub inner_type: String,
-    pub inner_default: String,
-    pub docs: String,
-    pub variants: Vec<TupleVariant>,
-}
-
-impl TupleEnum {
-    pub fn into_block_schemas(self, block_ident: &str) -> Vec<BlockSchema> {
-        let TupleEnum {
-            wrap_type,
-            inner_type,
-            inner_default,
-            docs,
-            variants,
-        } = self;
-        let mut data = Vec::new();
-        for variant in variants {
-            let TupleVariant {
-                ident: variant_ident,
-                docs: variant_docs,
-                value: variant_value,
-            } = variant;
-            let value_schema = match variant_value {
-                TupleEnumValue::Primary(pt) => BlockValueSchema::Primary(pt),
-                TupleEnumValue::UnitEnum(ut) => BlockValueSchema::UnitEnum(ut),
-            };
-            let schema = BlockSchema {
-                ident: block_ident.to_string() + TAG + &variant_ident,
-                docs: variant_docs,
-                value: value_schema,
-                hide: false,
-            };
-            data.push(schema);
-        }
-        return data;
-    }
-}
-#[derive(Debug, Clone)]
-pub struct TupleVariant {
-    pub ident: String,
-    pub docs: String,
-    pub value: TupleEnumValue,
-}
-
-#[derive(Debug, Clone)]
-pub enum TupleEnumValue {
-    Primary(PrimaryType),
-    UnitEnum(UnitEnum),
-}
 
 #[derive(Debug, Clone)]
 pub struct UnitEnum {
@@ -162,7 +108,6 @@ pub enum Schema {
     Primary(PrimaryType),
     Struct(Struct),
     UnitEnum(UnitEnum),
-    TupleEnum(TupleEnum),
 }
 
 impl Schema {
@@ -172,7 +117,6 @@ impl Schema {
             Schema::Primary(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
             Schema::Struct(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
             Schema::UnitEnum(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
-            Schema::TupleEnum(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
         }
     }
 }
@@ -225,6 +169,7 @@ macro_rules! impl_type_info_primary {
     };
 }
 
+impl_type_info_primary!(bool, "bool");
 impl_type_info_primary!(String, "string");
 impl_type_info_primary!(i8, "i8");
 impl_type_info_primary!(i16, "i16");

@@ -2,8 +2,14 @@ use std::collections::HashMap;
 
 use toml::Value;
 
-use crate::{block::{BlockMeta, BlockSchema, BlockValueSchema},  error::Error, schema::{Schema, Struct, StructField}, section::{Section, SectionMeta, SectionSchema}, ROOT_KEY};
 use crate::TAG;
+use crate::{
+    block::{BlockMeta, BlockSchema, BlockValueSchema},
+    error::Error,
+    schema::{Schema, Struct, StructField},
+    section::{Section, SectionMeta, SectionSchema},
+    ROOT_KEY,
+};
 
 #[derive(Debug, Clone)]
 pub struct SectionMetaGroup {
@@ -18,7 +24,7 @@ impl SectionMetaGroup {
             .enumerate()
             .map(|(i, section)| section.into_section(i))
             .collect();
-        SectionGroup {sections}
+        SectionGroup { sections }
     }
 }
 
@@ -99,7 +105,12 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
     } = field;
     let key = format!("{section_key}{TAG}{ident}");
     let fn_block_meta = |value: BlockValueSchema| {
-        let schema = BlockSchema { ident, docs, value, hide: false };
+        let schema = BlockSchema {
+            ident,
+            docs,
+            value,
+            hide: false,
+        };
         BlockMeta {
             key: key.clone(),
             schema,
@@ -115,10 +126,6 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
         }
         Schema::UnitEnum(ut) => {
             let value = BlockValueSchema::UnitEnum(ut);
-            blocks.push(fn_block_meta(value));
-        }
-        Schema::TupleEnum(tt) => {
-            let value = BlockValueSchema::TupleEnum(tt);
             blocks.push(fn_block_meta(value));
         }
         Schema::Struct(st) => {
@@ -139,12 +146,14 @@ impl SectionGroup {
     pub fn render(&self) -> Result<String, Error> {
         let mut data = Vec::new();
         for section in &self.sections {
-            data.push(section.render()?);
+            let text = section.render()?;
+            if !text.is_empty() {
+                data.push(text);
+            }
         }
         Ok(data.join("\n\n"))
     }
 }
-
 
 impl SectionGroup {
     pub fn from_value(value: Value) -> Result<SectionGroup, Error> {

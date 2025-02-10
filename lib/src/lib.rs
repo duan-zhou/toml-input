@@ -11,5 +11,5 @@ pub use schema::TomlSchema;
 
 const TAG: &str = ".";
 const ROOT_KEY: &str = "";
-const COMMENT: &str = "# ";
-const BANG_COMMENT: &str = "#! ";
+const COMMENT: &str = "#";
+const BANG_COMMENT: &str = "#!";

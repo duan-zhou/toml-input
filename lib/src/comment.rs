@@ -1,4 +1,4 @@
-use crate::{error::Error, COMMENT};
+use crate::{error::Error, util};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommentType {
@@ -26,12 +26,16 @@ pub struct Comment {
 }
 
 impl Comment {
+    pub fn is_empty(&self) -> bool {
+        self.define_docs.trim().is_empty() && self.field_docs.trim().is_empty()
+    }
+
     pub fn render(&self) -> Result<String, Error> {
         let text = if self.type_ == CommentType::BlockVariant || self.type_ == CommentType::Root {
-            format!("{}{}", COMMENT, self.define_docs)
+            self.define_docs.clone()
         } else {
-            format!("{}{}", COMMENT, self.field_docs)
+            self.field_docs.clone()
         };
-        Ok(text)
+        Ok(util::comment_lines(&text))
     }
 }

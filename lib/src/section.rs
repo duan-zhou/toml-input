@@ -119,38 +119,50 @@ impl Section {
         }
     }
 
-    pub fn from_str(text: &str) -> Result<Vec<Section>, Error> {
-        // for root comment
-        let mut sections = vec![Section::new(0)];
-        let mut section_key = String::new();
-        let mut section_id = 0;
-        let mut block_id = 0;
-        for line in text.lines() {
-            let n = line.trim().len();
-            if line.starts_with("[") {
-                section_id += 1;
-                let off = if line.starts_with("[[") { 2 } else { 1 };
-                section_key = line[off..(n - off)].to_string();
-                let mut section = Section::new(section_id);
-                section.key = section_key.clone();
-                sections.push(section);
-            } else if n > 0 {
-                let off = line.find("=").expect("toml format bug");
-                let ident = line[0..off].trim();
-                let value = line[off + 1..].trim();
-                let block_key = section_key.clone() + TAG + ident;
-                let mut block = Block::new(block_id, section_id);
-                block.key = block_key;
-                block.ident = ident.to_string();
-                block.value = value.to_string();
-                let n = sections.len();
-                let section = &mut sections[n];
-                section.blocks.push(block);
-                block_id += 1;
-            }
-        }
-        Ok(sections)
+    pub fn is_root(&self) -> bool {
+        self.key == ROOT_KEY
     }
+
+
+    pub fn is_empty_comment(&self) -> bool {
+        match &self.comment {
+            None => true,
+            Some(comment) => comment.is_empty()
+        }
+    }
+
+    // pub fn from_str(text: &str) -> Result<Vec<Section>, Error> {
+    //     // for root comment
+    //     let mut sections = vec![Section::new(0)];
+    //     let mut section_key = String::new();
+    //     let mut section_id = 0;
+    //     let mut block_id = 0;
+    //     for line in text.lines() {
+    //         let n = line.trim().len();
+    //         if line.starts_with("[") {
+    //             section_id += 1;
+    //             let off = if line.starts_with("[[") { 2 } else { 1 };
+    //             section_key = line[off..(n - off)].to_string();
+    //             let mut section = Section::new(section_id);
+    //             section.key = section_key.clone();
+    //             sections.push(section);
+    //         } else if n > 0 {
+    //             let off = line.find("=").expect("toml format bug");
+    //             let ident = line[0..off].trim();
+    //             let value = line[off + 1..].trim();
+    //             let block_key = section_key.clone() + TAG + ident;
+    //             let mut block = Block::new(block_id, section_id);
+    //             block.key = block_key;
+    //             block.ident = ident.to_string();
+    //             block.value = value.to_string();
+    //             let n = sections.len();
+    //             let section = &mut sections[n];
+    //             section.blocks.push(block);
+    //             block_id += 1;
+    //         }
+    //     }
+    //     Ok(sections)
+    // }
 
     pub fn from_table(key: String, table: Table, nest_stop: bool) -> Result<Vec<Section>, Error> {
         let mut section = Section::new(0);
@@ -186,9 +198,11 @@ impl Section {
         if let Some(comment) = &self.comment {
             text = comment.render()?;
         }
-        util::append_line(&mut text);
+        if text.trim().len() > 0 {
+            util::append_line(&mut text);
+        }
         let (left, right) = self.type_.tag();
-        let key = &self.key;
+        let key = util::remove_prefix_tag(&self.key);
         text = format!("{text}{left}{key}{right}");
         for block in &self.blocks {
             text.extend(["\n".to_string(), block.render()?]);

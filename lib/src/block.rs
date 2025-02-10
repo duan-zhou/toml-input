@@ -3,7 +3,7 @@ use toml::Value;
 use crate::{
     comment::{Comment, CommentType},
     error::Error,
-    schema::{PrimaryType, TupleEnum, UnitEnum},
+    schema::{PrimaryType, UnitEnum},
     section::Section,
     util, BANG_COMMENT,
 };
@@ -11,7 +11,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum BlockValueSchema {
     UnitEnum(UnitEnum),
-    TupleEnum(TupleEnum),
     Primary(PrimaryType),
 }
 
@@ -25,7 +24,12 @@ pub struct BlockSchema {
 
 impl BlockSchema {
     pub fn into_blocks(self) -> Vec<Block> {
-        let BlockSchema { ident, docs, value, hide } = self;
+        let BlockSchema {
+            ident,
+            docs,
+            value,
+            hide,
+        } = self;
         let mut block = Block::new(0, 0);
         block.ident = ident;
         block.hide = hide;
@@ -72,15 +76,6 @@ impl BlockSchema {
                     block1.comment = Some(comment1);
                     block1.type_ = BlockType::FieldVariant;
                     blocks.push(block1);
-                }
-                return blocks;
-            }
-
-            BlockValueSchema::TupleEnum(tt) => {
-                let schemas = tt.into_block_schemas(&block.ident);
-                let mut blocks = Vec::new();
-                for schema in schemas {
-                    blocks.append(&mut schema.into_blocks());
                 }
                 return blocks;
             }
@@ -143,8 +138,11 @@ impl Block {
         let mut text = String::new();
         if let Some(comment) = &self.comment {
             text = comment.render()?;
+            if !text.is_empty() {
+                text = text + "\n";
+            }
         }
-        text = format!("{}\n{} = {}", text, self.ident, self.value);
+        text = format!("{}{} = {}", text, self.ident, self.value);
         if self.hide {
             text = util::prefix_lines(&text, BANG_COMMENT)
         }
