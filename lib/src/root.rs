@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use toml::Value;
 
+use crate::schema::TomlConfig;
 use crate::TAG;
 use crate::{
     block::{BlockMeta, BlockSchema, BlockValueSchema},
@@ -12,23 +13,24 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct SectionMetaGroup {
+pub struct RootMeta {
+    pub config: TomlConfig,
     pub sections: Vec<SectionMeta>,
 }
 
-impl SectionMetaGroup {
-    pub fn into_section_group(self) -> SectionGroup {
-        let sections: Vec<Section> = self
-            .sections
+impl RootMeta {
+    pub fn into_root(self) -> Root {
+        let RootMeta { config, sections } = self;
+        let sections: Vec<Section> = sections
             .into_iter()
             .enumerate()
             .map(|(i, section)| section.into_section(i))
             .collect();
-        SectionGroup { sections }
+        Root { sections, config }
     }
 }
 
-impl From<Struct> for SectionMetaGroup {
+impl From<Struct> for RootMeta {
     fn from(value: Struct) -> Self {
         let Struct {
             wrap_type,
@@ -36,6 +38,7 @@ impl From<Struct> for SectionMetaGroup {
             inner_default,
             docs,
             fields,
+            config,
         } = value;
         let key = ROOT_KEY.to_string();
         let mut sections = Vec::new();
@@ -49,16 +52,17 @@ impl From<Struct> for SectionMetaGroup {
             wrap_type,
             inner_type,
             inner_default,
-            docs: docs,
+            docs,
+            config: config.clone(),
         };
         let meta = SectionMeta {
             key,
+            docs: String::new(),
             schema,
             blocks,
-            docs: String::new(),
         };
         sections.insert(0, meta);
-        SectionMetaGroup { sections }
+        RootMeta { sections, config }
     }
 }
 
@@ -69,6 +73,7 @@ fn meta_from_struct(st: Struct, key: String, flatten: bool) -> (Vec<SectionMeta>
         inner_default,
         docs,
         fields,
+        config,
     } = st;
     let mut sections = Vec::new();
     let mut blocks = Vec::new();
@@ -85,6 +90,7 @@ fn meta_from_struct(st: Struct, key: String, flatten: bool) -> (Vec<SectionMeta>
         inner_type,
         inner_default,
         docs,
+        config,
     };
     let meta = SectionMeta {
         key,
@@ -102,6 +108,7 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
         docs,
         flatten,
         schema,
+        config,
     } = field;
     let key = format!("{section_key}{TAG}{ident}");
     let fn_block_meta = |value: BlockValueSchema| {
@@ -110,6 +117,7 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
             docs,
             value,
             hide: false,
+            config,
         };
         BlockMeta {
             key: key.clone(),
@@ -138,11 +146,20 @@ fn meta_from_field(field: StructField, section_key: &str) -> (Vec<SectionMeta>, 
 }
 
 #[derive(Debug, Clone)]
-pub struct SectionGroup {
+pub struct Root {
     pub sections: Vec<Section>,
+    pub config: TomlConfig,
 }
 
-impl SectionGroup {
+impl Root {
+    pub fn hide_blocks(&mut self) {
+        for section in &mut self.sections {
+            for block in &mut section.blocks {
+                block.hide = true
+            }
+        }
+    }
+
     pub fn render(&self) -> Result<String, Error> {
         let mut data = Vec::new();
         for section in &self.sections {
@@ -153,27 +170,31 @@ impl SectionGroup {
         }
         Ok(data.join("\n\n"))
     }
-}
 
-impl SectionGroup {
-    pub fn from_value(value: Value) -> Result<SectionGroup, Error> {
+    pub fn from_value(value: Value) -> Result<Root, Error> {
         match value {
             Value::Table(table) => {
                 let nest_stop = false;
                 let sections = Section::from_table(ROOT_KEY.to_string(), table, nest_stop)?;
-                Ok(SectionGroup { sections })
+                Ok(Root {
+                    sections,
+                    config: TomlConfig::default(),
+                })
             }
             _ => panic!(),
         }
     }
 
     pub fn merge_value(&mut self, value: Value) -> Result<(), Error> {
+        self.hide_blocks();
         let mut map: HashMap<_, _> = self
             .sections
             .iter_mut()
             .map(|section| (section.key.clone(), (false, section)))
             .collect();
-        let SectionGroup { sections: source } = SectionGroup::from_value(value).unwrap();
+        let Root {
+            sections: source, ..
+        } = Root::from_value(value).unwrap();
         let mut added = Vec::new();
         for section in source {
             let (visited, dest) = map.get_mut(&section.key).unwrap();
@@ -187,7 +208,7 @@ impl SectionGroup {
             }
         }
         self.sections.append(&mut added);
-        self.sections.sort_by_key(|section| section.key.clone());
+        self.sections.sort_by_key(|section| section.id);
         Ok(())
     }
 }

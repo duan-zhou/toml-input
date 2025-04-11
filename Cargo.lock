@@ -209,18 +209,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml-comment"
+name = "toml-input"
 version = "0.12.1"
 dependencies = [
  "bytes",
  "serde",
  "serde_repr",
  "toml",
- "toml-comment-derive",
+ "toml-input-derive",
 ]
 
 [[package]]
-name = "toml-comment-derive"
+name = "toml-input-derive"
 version = "0.12.1"
 dependencies = [
  "darling",
@@ -230,7 +230,7 @@ dependencies = [
  "serde",
  "syn",
  "toml",
- "toml-comment",
+ "toml-input",
 ]
 
 [[package]]

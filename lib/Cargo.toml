@@ -1,5 +1,5 @@
 [package]
-name = "toml-comment"
+name = "toml-input"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,7 +11,7 @@ categories.workspace = true
 [dependencies]
 toml = "*"
 serde = { version = "*", features = ["derive"] }
-toml-comment-derive = { version = "*", path = "../derive" }
+toml-input-derive = { version = "*", path = "../derive" }
 bytes = "*"
 
 [dev-dependencies]

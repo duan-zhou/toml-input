@@ -1,4 +1,4 @@
-use crate::{error::Error, util};
+use crate::{error::Error, schema::TomlConfig, util};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommentType {
@@ -23,6 +23,7 @@ pub struct Comment {
     pub inner_type: String,
     pub inner_default: String,
     pub type_: CommentType,
+    pub config: TomlConfig,
 }
 
 impl Comment {

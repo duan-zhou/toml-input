@@ -1,9 +1,19 @@
+use std::path::PathBuf;
+
 use serde::Serialize;
 
-use crate::{
-    group::SectionMetaGroup,
-    util
-};
+use crate::{error::Error, root::RootMeta, util};
+
+#[derive(Debug, Clone)]
+pub struct TomlConfig {
+    pub enum_expand: bool,
+}
+
+impl Default for TomlConfig {
+    fn default() -> Self {
+        TomlConfig { enum_expand: true }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct UnitEnum {
@@ -12,6 +22,7 @@ pub struct UnitEnum {
     pub inner_default: String,
     pub docs: String,
     pub variants: Vec<UnitVariant>,
+    pub config: TomlConfig,
 }
 
 impl UnitEnum {
@@ -22,6 +33,7 @@ impl UnitEnum {
             inner_default: String::new(),
             docs: String::new(),
             variants: Vec::new(),
+            config: TomlConfig::default(),
         }
     }
 }
@@ -31,6 +43,7 @@ pub struct UnitVariant {
     pub tag: String,
     pub docs: String,
     pub value: isize,
+    pub config: TomlConfig,
 }
 
 impl UnitVariant {
@@ -39,6 +52,7 @@ impl UnitVariant {
             tag: String::new(),
             docs: String::new(),
             value: 0,
+            config: TomlConfig::default(),
         }
     }
 }
@@ -50,6 +64,7 @@ pub struct Struct {
     pub inner_default: String,
     pub docs: String,
     pub fields: Vec<StructField>,
+    pub config: TomlConfig,
 }
 
 impl Struct {
@@ -60,6 +75,7 @@ impl Struct {
             inner_default: String::new(),
             docs: String::new(),
             fields: Vec::new(),
+            config: TomlConfig::default(),
         }
     }
 }
@@ -70,6 +86,7 @@ pub struct StructField {
     pub docs: String,
     pub flatten: bool,
     pub schema: Schema,
+    pub config: TomlConfig,
 }
 
 impl StructField {
@@ -79,6 +96,7 @@ impl StructField {
             docs: String::new(),
             flatten: false,
             schema: Schema::None,
+            config: TomlConfig::default(),
         }
     }
 }
@@ -127,37 +145,33 @@ impl Schema {
     }
 }
 
-pub trait TomlSchema: Serialize + Sized {
+pub trait TomlInput: Serialize + Sized {
     fn schema() -> Schema;
-    fn schema_to_string() -> String {
+    fn schema_to_string() -> Result<String, Error> {
         let schema = Self::schema();
         if let Schema::Struct(st) = schema {
-            let meta = SectionMetaGroup::from(st);
-            // println!("{:?}", meta);
-            let group = meta.into_section_group();
-            // println!("{:?}", group);
-            return group.render().unwrap();
+            let meta = RootMeta::from(st);
+            let root = meta.into_root();
+            return root.render();
         }
-        return String::new();
+        return Ok(String::new());
     }
-    fn value_to_string(self) -> String {
+    fn value_to_string(self) -> Result<String, Error> {
         let schema = Self::schema();
         if let Schema::Struct(st) = schema {
-            let meta = SectionMetaGroup::from(st);
-            println!("{:?}", meta);
-            let mut group = meta.into_section_group();
-            println!("{:?}", group);
+            let meta = RootMeta::from(st);
+            let mut root = meta.into_root();
             let value = toml::Value::try_from(self).unwrap();
-            group.merge_value(value).unwrap();
-            return group.render().unwrap();
+            root.merge_value(value).unwrap();
+            return root.render();
         }
-        return String::new();
+        return Ok(String::new());
     }
 }
 
 macro_rules! impl_type_info_primary {
     ($t:ty, $name:expr) => {
-        impl TomlSchema for $t {
+        impl TomlInput for $t {
             fn schema() -> Schema {
                 let default = <$t as Default>::default();
                 let mut data = PrimaryType::empty();
@@ -183,8 +197,9 @@ impl_type_info_primary!(u64, "u64");
 impl_type_info_primary!(usize, "usize");
 impl_type_info_primary!(f32, "f32");
 impl_type_info_primary!(f64, "f64");
+impl_type_info_primary!(PathBuf, "path");
 
-impl<T: TomlSchema> TomlSchema for Option<T> {
+impl<T: TomlInput> TomlInput for Option<T> {
     fn schema() -> Schema {
         let mut schema = T::schema();
         schema.set_wrap_type("Option".to_string());
@@ -192,7 +207,7 @@ impl<T: TomlSchema> TomlSchema for Option<T> {
     }
 }
 
-impl<T: TomlSchema> TomlSchema for Vec<T> {
+impl<T: TomlInput> TomlInput for Vec<T> {
     fn schema() -> Schema {
         let mut schema = T::schema();
         schema.set_wrap_type("Vec".to_string());

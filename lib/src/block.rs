@@ -3,7 +3,7 @@ use toml::Value;
 use crate::{
     comment::{Comment, CommentType},
     error::Error,
-    schema::{PrimaryType, UnitEnum},
+    schema::{PrimaryType, TomlConfig, UnitEnum},
     section::Section,
     util, BANG_COMMENT,
 };
@@ -20,6 +20,7 @@ pub struct BlockSchema {
     pub docs: String,
     pub hide: bool,
     pub value: BlockValueSchema,
+    pub config: TomlConfig,
 }
 
 impl BlockSchema {
@@ -29,6 +30,7 @@ impl BlockSchema {
             docs,
             value,
             hide,
+            config: field_config,
         } = self;
         let mut block = Block::new(0, 0);
         block.ident = ident;
@@ -54,6 +56,7 @@ impl BlockSchema {
                     inner_default,
                     docs,
                     variants,
+                    config: _,
                 } = ut;
                 comment.define_docs = docs;
                 comment.wrap_type = wrap_type;
@@ -75,6 +78,9 @@ impl BlockSchema {
                     }
                     block1.comment = Some(comment1);
                     block1.type_ = BlockType::FieldVariant;
+                    if !field_config.enum_expand {
+                        block1.skip = true;
+                    }
                     blocks.push(block1);
                 }
                 return blocks;
@@ -104,6 +110,7 @@ impl BlockMeta {
 
 #[derive(Debug, Clone)]
 pub enum BlockType {
+    Unknown,
     FieldValue,
     FieldVariant,
 }
@@ -118,6 +125,8 @@ pub struct Block {
     pub ident: String,
     pub comment: Option<Comment>,
     pub hide: bool,
+    pub skip: bool,
+    pub config: TomlConfig,
 }
 
 impl Block {
@@ -128,13 +137,25 @@ impl Block {
             key: String::new(),
             value: String::new(),
             ident: String::new(),
-            type_: BlockType::FieldValue,
+            type_: BlockType::Unknown,
             comment: None,
             hide: false,
+            skip: false,
+            config: TomlConfig::default(),
+        }
+    }
+
+    pub fn map_key(&self) -> String {
+        match self.type_ {
+            BlockType::FieldVariant => format!("{}-{}", self.key, self.value),
+            _ => format!("{}", self.key),
         }
     }
 
     pub fn render(&self) -> Result<String, Error> {
+        if self.skip {
+            return Ok(String::new())
+        }
         let mut text = String::new();
         if let Some(comment) = &self.comment {
             text = comment.render()?;
@@ -142,11 +163,11 @@ impl Block {
                 text = text + "\n";
             }
         }
-        text = format!("{}{} = {}", text, self.ident, self.value);
+        let mut block = format!("{} = {}", self.ident, self.value);
         if self.hide {
-            text = util::prefix_lines(&text, BANG_COMMENT)
+            block = util::prefix_lines(&format!("{block}"), BANG_COMMENT)
         }
-        Ok(text)
+        Ok(format!("{text}{block}"))
     }
 
     pub fn from_value(
