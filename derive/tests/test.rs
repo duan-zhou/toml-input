@@ -1,4 +1,5 @@
 use serde::Serialize;
+use strum_macros::{AsRefStr, EnumIter};
 use toml_input_derive::TomlInput;
 
 #[test]
@@ -12,13 +13,13 @@ fn test_struct() {
     }
 
     use toml_input::TomlInput;
-    dbg!(TestStruct::schema());
+    dbg!(TestStruct::schema().unwrap());
 }
 
 #[test]
 fn test_enum() {
     /// this is comment of enum
-    #[derive(TomlInput, Debug, Serialize)]
+    #[derive(EnumIter, AsRefStr, TomlInput, Debug, Serialize)]
     #[toml_input(enum_expand)]
     enum TestEnum {
         A,
@@ -31,5 +32,5 @@ fn test_enum() {
         }
     }
     use toml_input::TomlInput;
-    dbg!(TestEnum::schema());
+    dbg!(TestEnum::schema().unwrap());
 }

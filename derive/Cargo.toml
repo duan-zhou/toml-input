@@ -21,4 +21,6 @@ regex = "1"
 [dev-dependencies]
 toml-input = {version = "*", path = "../lib"}
 toml = "*"
+strum = "*"
+strum_macros = "*"
 serde = { version = "*", features = ["derive"] }

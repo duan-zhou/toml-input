@@ -1,15 +1,23 @@
 pub mod block;
-pub mod schema;
-pub mod util;
-pub mod error;
-pub mod section;
-pub mod root;
 pub mod comment;
+pub mod config;
+pub mod error;
+pub mod schema;
+pub mod section;
+mod toml_input;
+pub mod util;
+mod value;
 
+pub use error::Error;
+pub use schema::Schema;
+pub use toml_input::*;
 pub use toml_input_derive::TomlInput;
-pub use schema::TomlInput;
+pub use value::Value;
+pub use value::*;
 
 const TAG: &str = ".";
 const ROOT_KEY: &str = "";
 const COMMENT: &str = "#";
 const BANG_COMMENT: &str = "#!";
+
+use toml::Value as TomlValue;

@@ -1,15 +1,13 @@
 extern crate proc_macro;
 
+use darling::FromDeriveInput;
 use darling::{
     ast::{self, Data, Fields},
     FromField, FromVariant,
 };
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, Attribute, DeriveInput, Expr, ExprLit, Ident, Lit, Meta, Type};
-
-use darling::FromDeriveInput;
-
 mod case;
 mod serde_parse;
 
@@ -24,28 +22,35 @@ pub fn derive(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     } = StructRaw::from_derive_input(&input).unwrap();
     let mut config = Config::default();
     config.enum_expand = enum_expand;
-    let token;
+    let schema_token;
+    let value_token;
     match data {
         Data::Enum(variants) => {
-            token = quote_enum(&ident, &attrs, variants, config);
+            schema_token = quote_enum_schema(&ident, &attrs, variants, config);
+            value_token = quote_enum_value();
         }
         Data::Struct(fields) => {
-            token = quote_struct(&ident, &attrs, fields, config);
+            schema_token = quote_struct_schema(&ident, &attrs, fields.clone(), config);
+            value_token = quote_struct_value(&attrs, fields.clone());
         }
     }
     let token = quote! {
-        impl toml_input::schema::TomlInput for #ident {
-            fn schema() -> toml_input::schema::Schema {
+        impl toml_input::TomlInput for #ident {
+            fn schema() -> Result<toml_input::Schema, toml_input::Error> {
+                use toml;
                 use toml_input::schema;
-                use toml_input::util;
-                #token
+                #schema_token
+            }
+            fn into_value(self) -> Result<toml_input::Value, toml_input::Error> {
+                #value_token
             }
         }
     };
+    // println!("{}", token);
     token.into()
 }
 
-fn quote_enum(
+fn quote_enum_schema(
     ident: &Ident,
     attrs: &[Attribute],
     variants: Vec<VariantRaw>,
@@ -54,61 +59,59 @@ fn quote_enum(
     let enum_ident = ident;
     let enum_docs = parse_docs(&attrs);
     let inner_type = enum_ident.to_string();
-    let enum_rename_rule = serde_parse::rename_rule(&attrs);
     let mut tokens = Vec::new();
-    let mut last_repr_value = 0;
     for variant in variants {
-        let VariantRaw {
-            ident: variant_ident,
-            attrs,
-            discriminant,
-            enum_expand,
-        } = variant;
+        let VariantRaw { attrs, enum_expand } = variant;
         let mut config = Config::default();
         config.enum_expand = enum_expand;
-        let repr_value = discriminant
-            .map(|token| {
-                let s = token.into_token_stream();
-                let text = s.to_string().replace(" ", "");
-                let value: isize = text.parse().unwrap();
-                value
-            })
-            .unwrap_or(last_repr_value);
-        last_repr_value = repr_value + 1;
-
         let variant_docs = parse_docs(&attrs);
-        let variant_rename_rule = serde_parse::rename_rule(&attrs);
-        let variant_name = variant_ident.to_string();
-        let variant_name = enum_rename_rule.rename_all(&variant_name);
-        let variant_name = variant_rename_rule.rename(&variant_name);
-        let config_tokens = config.config_tokens(quote! {variant});
+        let config_token = config.config_token(quote! {variant});
         let variant_token = quote! {
-            let mut variant = schema::UnitVariant::empty();
-            variant.tag = format!("\"{}\"", #variant_name);
+            let mut variant = schema::VariantSchema::default();
             variant.docs = #variant_docs.to_string();
-            variant.value = #repr_value;
-            #config_tokens
-            root.variants.push(variant);
+            let value = variant_iter.next().unwrap();
+            let tag = std::convert::AsRef::as_ref(&value).to_string();
+            let raw = toml::Value::try_from(value).unwrap();
+            let prim_value = toml_input::PrimValue {tag, raw: Some(raw)};
+            variant.value = prim_value;
+            #config_token
+            prim_schema.variants.push(variant);
         };
         tokens.push(variant_token);
     }
-    let config_tokens = config.config_tokens(quote! {root});
+    let config_token = config.config_token(quote! {meta});
     let enum_token = quote! {
+        use strum::IntoEnumIterator;
         let default = <#enum_ident as Default>::default();
-        let mut root = schema::UnitEnum::empty();
-        root.wrap_type = "".to_string();
-        root.inner_type = #inner_type.to_string();
-        root.inner_default = util::value_to_string(&default).unwrap();
-        root.docs = #enum_docs.to_string();
-        #config_tokens
-        root.variants = Vec::new();
+        let mut prim_schema = schema::PrimSchema::default();
+        let mut meta = schema::Meta::default();
+        meta.wrap_type = "".to_string();
+        meta.inner_type = #inner_type.to_string();
+        let tag = default.as_ref().to_string();
+        let raw = toml::Value::try_from(default).unwrap();
+        meta.inner_default = toml_input::PrimValue{tag, raw: Some(raw)};
+        meta.defined_docs = #enum_docs.to_string();
+        #config_token
+        prim_schema.meta = meta;
+        let mut variant_iter = #enum_ident::iter();
+        prim_schema.variants = Vec::new();
         #(#tokens)*
-        schema::Schema::UnitEnum(root)
+        Ok(schema::Schema::Prim(prim_schema))
     };
     enum_token
 }
 
-fn quote_struct(
+fn quote_enum_value() -> TokenStream {
+    let enum_token = quote! {
+        let tag = self.as_ref().to_string();
+        let raw = toml::Value::try_from(self).unwrap();
+        let prim = toml_input::PrimValue {tag, raw: Some(raw)};
+        Ok(toml_input::Value::Prim(prim))
+    };
+    enum_token
+}
+
+fn quote_struct_schema(
     ident: &Ident,
     attrs: &[Attribute],
     fields: Fields<FieldRaw>,
@@ -135,40 +138,79 @@ fn quote_struct(
         let field_name = struct_rename_rule.rename_all(&field_name);
         let field_name = field_rename_rule.rename(&field_name);
         let field_flatten = serde_parse::flatten(&attrs);
-        let config_tokens = config.config_tokens(quote! {field});
+        let config_token = config.config_token(quote! {field});
         let field_token = quote! {
-            let mut field = schema::StructField::empty();
+            let mut field = schema::FieldSchema::default();
             field.ident = #field_name.to_string();
             field.docs = #field_docs.to_string();
-            field.flatten = #field_flatten;
-            field.schema = <#ty as schema::TomlInput>::schema();
-            #config_tokens
-            root.fields.push(field);
+            field.flat = #field_flatten;
+            field.schema = <#ty as toml_input::TomlInput>::schema()?;
+            #config_token
+            table.fields.push(field);
         };
         tokens.push(field_token);
     }
-    let config_tokens = config.config_tokens(quote! {root});
+    let config_token = config.config_token(quote! {table});
     let struct_token = quote! {
         let default = <#struct_ident as Default>::default();
-        let mut root = schema::Struct::empty();
-        root.wrap_type = "".to_string();
-        root.inner_type = #inner_type.to_string();
-        root.inner_default = util::value_to_string(&default).unwrap();
-        root.docs = #struct_docs.to_string();
-        #config_tokens
-        root.fields = Vec::new();
+        let mut table = schema::TableSchema::default();
+        let mut meta = schema::Meta::default();
+        meta.wrap_type = "".to_string();
+        meta.inner_type = #inner_type.to_string();
+        let raw = toml::Value::try_from(default).unwrap();
+        meta.inner_default = toml_input::PrimValue::new(raw);
+        meta.defined_docs = #struct_docs.to_string();
+        table.meta = meta;
+        #config_token
+        table.fields = Vec::new();
         #(#tokens)*
-        schema::Schema::Struct(root)
+        Ok(schema::Schema::Table(table))
     };
     struct_token
 }
 
-#[derive(Debug, FromDeriveInput)]
+fn quote_struct_value(attrs: &[Attribute], fields: Fields<FieldRaw>) -> TokenStream {
+    let struct_rename_rule = serde_parse::rename_rule(&attrs);
+    let mut tokens = Vec::new();
+    for field in fields {
+        let FieldRaw {
+            ident,
+            attrs,
+            enum_expand,
+            ..
+        } = field;
+        let mut config = Config::default();
+        config.enum_expand = enum_expand;
+        let field_ident = ident.unwrap();
+        let field_rename_rule = serde_parse::rename_rule(&attrs);
+        let field_name = field_ident.to_string();
+        let field_name = struct_rename_rule.rename_all(&field_name);
+        let field_name = field_rename_rule.rename(&field_name);
+        let field_flatten = serde_parse::flatten(&attrs);
+        let field_token = quote! {
+            let mut field = toml_input::FieldValue::default();
+            field.ident = #field_name.to_string();
+            field.flat = #field_flatten;
+            field.value = self.#field_ident.into_value()?;
+            table.fields.push(field);
+        };
+        tokens.push(field_token);
+    }
+    let struct_token = quote! {
+        let mut table = toml_input::TableValue::default();
+        #(#tokens)*
+        Ok(toml_input::Value::Table(table))
+    };
+    struct_token
+}
+
+#[derive(Debug, Clone, FromDeriveInput)]
 #[darling(
-    supports(struct_named, enum_unit, enum_tuple),
+    supports(struct_named, enum_any),
     attributes(toml_input),
     forward_attrs(doc, serde)
 )]
+
 struct StructRaw {
     ident: Ident,
     attrs: Vec<Attribute>,
@@ -176,7 +218,7 @@ struct StructRaw {
     enum_expand: Option<bool>,
 }
 
-#[derive(Debug, FromField)]
+#[derive(Debug, Clone, FromField)]
 #[darling(attributes(toml_input), forward_attrs(doc, serde))]
 struct FieldRaw {
     ident: Option<Ident>,
@@ -185,12 +227,10 @@ struct FieldRaw {
     enum_expand: Option<bool>,
 }
 
-#[derive(Debug, FromVariant)]
+#[derive(Debug, Clone, FromVariant)]
 #[darling(attributes(toml_input), forward_attrs(doc, serde))]
 struct VariantRaw {
-    ident: Ident,
     attrs: Vec<Attribute>,
-    discriminant: Option<syn::Expr>,
     enum_expand: Option<bool>,
 }
 
@@ -219,7 +259,7 @@ struct Config {
 }
 
 impl Config {
-    fn config_tokens(&self, tag: TokenStream) -> TokenStream {
+    fn config_token(&self, tag: TokenStream) -> TokenStream {
         let mut token = TokenStream::new();
         if self.enum_expand.is_some() {
             let enum_expand = self.enum_expand;

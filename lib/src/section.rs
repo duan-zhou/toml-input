@@ -1,202 +1,157 @@
 use std::collections::HashMap;
 
-use toml::Table;
-
 use crate::{
-    block::{Block, BlockMeta},
+    block::Block,
     comment::{Comment, CommentType},
     error::Error,
-    schema::TomlConfig,
-    util, BANG_COMMENT, ROOT_KEY, TAG,
+    schema::Meta,
+    util, Value, ROOT_KEY,
 };
 
 #[derive(Debug, Clone)]
-pub struct SectionSchema {
-    pub wrap_type: String,
-    pub inner_type: String,
-    pub inner_default: String,
-    pub docs: String,
-    pub config: TomlConfig,
-}
-
-impl SectionSchema {
-    pub fn into_comment(self) -> Comment {
-        let SectionSchema {
-            wrap_type,
-            inner_type,
-            inner_default,
-            docs,
-            config,
-        } = self;
-        Comment {
-            define_docs: docs,
-            field_docs: String::new(),
-            wrap_type,
-            inner_type,
-            inner_default,
-            type_: CommentType::Section,
-            config,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SectionMeta {
-    pub key: String,
-    pub schema: SectionSchema,
-    pub blocks: Vec<BlockMeta>,
-    pub docs: String,
-}
-
-impl SectionMeta {
-    pub fn into_section(self, id: usize) -> Section {
-        let SectionMeta {
-            key,
-            schema,
-            docs,
-            blocks: blocks_meta,
-        } = self;
-        let config = schema.config.clone();
-        let mut comment = schema.into_comment();
-        if key == ROOT_KEY {
-            comment.type_ = CommentType::Root;
-        }
-        comment.field_docs = docs;
-        let mut blocks = Vec::new();
-        let section_id = id;
-        for (i, block) in blocks_meta.into_iter().enumerate() {
-            blocks.append(&mut block.into_blocks(i, section_id));
-        }
-        let type_ = if  key == ROOT_KEY  {
-            SectionType::Root
-        } else if comment.wrap_type == "Vec" {
-            SectionType::Array
-        } else {
-            SectionType::Table
-        };
-        Section {
-            id,
-            key,
-            comment: Some(comment),
-            type_,
-            hide: true,
-            blocks,
-            config,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum SectionType {
-    Root,
-    Table,
-    Array,
-}
-
-impl SectionType {
-    pub fn tag(&self) -> (String, String) {
-        match self {
-            Self::Root => ("".to_string(), "".to_string()),
-            Self::Table => ("[".to_string(), "]".to_string()),
-            Self::Array => ("[[".to_string(), "]]".to_string()),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Section {
-    pub id: usize,
     pub key: String,
+    pub meta: Meta,
+    pub array_index: Option<usize>,
     pub blocks: Vec<Block>,
-    pub type_: SectionType,
-    pub comment: Option<Comment>,
-    pub hide: bool,
-    pub config: TomlConfig,
+}
+
+impl Default for Section {
+    fn default() -> Self {
+        Section {
+            key: ROOT_KEY.to_string(),
+            meta: Meta::default(),
+            array_index: None,
+            blocks: Vec::new(),
+        }
+    }
 }
 
 impl Section {
-    pub fn new(id: usize) -> Self {
-        Section {
-            id,
-            key: String::new(),
-            blocks: Vec::new(),
-            type_: SectionType::Table,
-            comment: None,
-            hide: true,
-            config: TomlConfig::default(),
-        }
-    }
-
     pub fn is_root(&self) -> bool {
-        self.key == ROOT_KEY
+        self.key == ROOT_KEY && self.blocks.len() > 0
+    }
+    pub fn is_value(&self) -> bool {
+        self.key == ROOT_KEY && self.blocks.len() == 1 && self.blocks[0].is_value()
     }
 
-    pub fn is_empty_comment(&self) -> bool {
-        match &self.comment {
-            None => true,
-            Some(comment) => comment.is_empty(),
+    pub fn assigned_to(&mut self, ident: impl AsRef<str>) {
+        if self.is_value() {
+            for block in &mut self.blocks {
+                block.key = ident.as_ref().to_string();
+                block.ident = ident.as_ref().to_string();
+            }
+        } else {
+            util::increase_key(&mut self.key, &ident);
+            for block in &mut self.blocks {
+                util::increase_key(&mut block.key, &ident);
+            }
         }
     }
 
-    pub fn from_table(key: String, table: Table, nest_stop: bool) -> Result<Vec<Section>, Error> {
-        let mut section = Section::new(0);
-        section.key = key.clone();
-        let mut sections = Vec::new();
-        for (ident, sub_value) in table {
-            let sub_key = format!("{key}{TAG}{ident}");
-            let (mut sub_sections, mut sub_blocks) =
-                Block::from_value(ident, sub_key, sub_value, nest_stop).unwrap();
-            section.blocks.append(&mut sub_blocks);
-            sections.append(&mut sub_sections);
-        }
-        section.hide = false;
-        sections.insert(0, section);
-        Ok(sections)
-    }
-
-    pub fn merge_value(&mut self, value_section: Section) -> Result<(), Error> {
-        let Section { blocks: source, hide, .. } = value_section;
-        self.hide = hide;
-        let mut map = HashMap::new();
-        for block in self.blocks.iter_mut() {
-            let key = block.map_key();
-            map.insert(key, block);
-        }
-        for block in source {
-            let key = format!("{}-{}", block.key, block.value);
-            let dest = if map.contains_key(&key) {
-                map.get_mut(&key).unwrap()
+    pub fn reduce(sections: &mut Vec<Section>) {
+        let mut map: HashMap<String, &mut Section> = HashMap::new();
+        for section in sections.iter_mut() {
+            if let Some(s) = map.get_mut(&section.key) {
+                (*s).blocks.append(&mut section.blocks);
             } else {
-                map.get_mut(&block.key).unwrap()
-            };
-            dest.value = block.value;
-            dest.hide = block.hide;
-            dest.skip = block.skip;
+                map.insert(section.key.clone(), section);
+            }
         }
-        Ok(())
+        sections.dedup_by_key(|section| section.key.clone());
     }
 
     pub fn render(&self) -> Result<String, Error> {
-        let mut text = String::new();
-        if let Some(comment) = &self.comment {
-            text = comment.render()?;
+        let comment = self.comment();
+        let text = comment.render()?;
+        let mut lines = Vec::new();
+        if !text.is_empty() {
+            lines.push(text);
         }
-        if text.trim().len() > 0 {
-            util::append_line(&mut text);
-        }
-        // println!("section hide: {}, {}", self.hide, self.key);
-        let (left, right) = self.type_.tag();
-        let key = util::remove_prefix_tag(&self.key);
-        text = format!("{text}{left}{key}{right}");
+        let (left, right) = if self.is_root() {
+            ("".to_string(), "".to_string())
+        } else if self.meta.is_array {
+            ("[[".to_string(), "]]".to_string())
+        } else {
+            ("[".to_string(), "]".to_string())
+        };
+        lines.push(format!("{}{}{}", left, self.key, right));
         for block in &self.blocks {
-            let block_text = block.render()?;
-            if block_text.len() > 0 {
-                text.extend(["\n".to_string(), block.render()?]);
+            lines.push(block.render()?)
+        }
+        Ok(lines.join("\n"))
+    }
+
+    pub fn comment(&self) -> Comment {
+        let mut comment = self.meta.comment();
+        comment.comment_type = if self.is_root() {
+            CommentType::Root
+        } else {
+            CommentType::Section
+        };
+        comment
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TomlContent {
+    pub sections: Vec<Section>,
+}
+
+impl TomlContent {
+    pub fn merge_value(&mut self, value: Value) {
+        let values = value.flatten();
+        for value in &values {
+            if value.array_index.is_some() {
+                let section_key = util::key_parent(&value.key);
+                let mut new_section = None;
+                for section in &mut self.sections {
+                    if section.key != section_key {
+                        continue;
+                    }
+                    if section.array_index == value.array_index {
+                        new_section = None;
+                        break;
+                    }
+                    if new_section.is_none() {
+                        let mut section = section.clone();
+                        section.array_index = value.array_index;
+                        new_section = Some(section)
+                    }
+                }
+                if let Some(section) = new_section {
+                    self.sections.push(section);
+                }
             }
         }
-        if self.hide {
-            text = util::prefix_lines(&text, BANG_COMMENT);
+        for value in values {
+            'f0: for section in &mut self.sections {
+                if section.array_index != value.array_index {
+                    continue;
+                }
+                for block in &mut section.blocks {
+                    if block.key == value.key && value.value.is_some() {
+                        block.value = Some(value);
+                        break 'f0;
+                    }
+                }
+            }
         }
-        Ok(text)
+    }
+
+    pub fn config_block_comment(&mut self, commented: bool) {
+        for section in &mut self.sections {
+            for block in &mut section.blocks {
+                block.meta.config.block_comment = commented;
+            }
+        }
+    }
+
+    pub fn render(&self) -> Result<String, Error> {
+        let mut lines = Vec::new();
+        for section in &self.sections {
+            lines.push(section.render()?);
+        }
+        Ok(lines.join("\n\n"))
     }
 }

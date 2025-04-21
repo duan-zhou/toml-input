@@ -1,216 +1,168 @@
-use std::path::PathBuf;
+use crate::comment::Comment;
+use crate::config::TomlConfig;
+use crate::util;
+use crate::value::PrimValue;
 
-use serde::Serialize;
+use crate::{block::Block, section::Section};
 
-use crate::{error::Error, root::RootMeta, util};
-
-#[derive(Debug, Clone)]
-pub struct TomlConfig {
-    pub enum_expand: bool,
-}
-
-impl Default for TomlConfig {
-    fn default() -> Self {
-        TomlConfig { enum_expand: true }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct UnitEnum {
+#[derive(Debug, Clone, Default)]
+pub struct Meta {
+    pub config: TomlConfig,
+    pub defined_docs: String,
+    pub valued_docs: String,
     pub wrap_type: String,
     pub inner_type: String,
-    pub inner_default: String,
+    pub inner_default: PrimValue,
+    pub is_array: bool,
+}
+
+impl Meta {
+    pub fn comment(&self) -> Comment {
+        let mut comment = Comment::default();
+        comment.config = self.config.clone();
+        comment.defined_docs = self.defined_docs.clone();
+        comment.valued_docs = self.valued_docs.clone();
+        comment.inner_type = self.inner_type.clone();
+        comment.inner_default = self.inner_default.clone();
+        comment
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct VariantSchema {
     pub docs: String,
-    pub variants: Vec<UnitVariant>,
+    pub value: PrimValue,
     pub config: TomlConfig,
 }
 
-impl UnitEnum {
-    pub fn empty() -> Self {
-        UnitEnum {
-            wrap_type: String::new(),
-            inner_type: String::new(),
-            inner_default: String::new(),
-            docs: String::new(),
-            variants: Vec::new(),
-            config: TomlConfig::default(),
+#[derive(Debug, Clone, Default)]
+pub struct PrimSchema {
+    pub meta: Meta,
+    pub variants: Vec<VariantSchema>,
+}
+
+impl PrimSchema {
+    pub fn flatten(self) -> Section {
+        let PrimSchema { meta, variants } = self;
+        let array_index = if meta.is_array { Some(0) } else { None };
+        let block = Block {
+            meta,
+            variants,
+            ..Default::default()
+        };
+        Section {
+            array_index,
+            blocks: vec![block],
+            ..Default::default()
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct UnitVariant {
-    pub tag: String,
-    pub docs: String,
-    pub value: isize,
-    pub config: TomlConfig,
+#[derive(Debug, Clone, Default)]
+pub struct TableSchema {
+    pub meta: Meta,
+    pub fields: Vec<FieldSchema>,
 }
 
-impl UnitVariant {
-    pub fn empty() -> UnitVariant {
-        UnitVariant {
-            tag: String::new(),
-            docs: String::new(),
-            value: 0,
-            config: TomlConfig::default(),
+impl TableSchema {
+    pub fn flatten(self) -> Vec<Section> {
+        let TableSchema { meta, fields } = self;
+        let mut sections = Vec::new();
+        for field in fields {
+            sections.append(&mut field.flatten());
         }
+        Section::reduce(&mut sections);
+        for section in &mut sections {
+            if section.is_root() {
+                section.meta = meta.clone();
+                section.array_index = if meta.is_array { Some(0) } else { None };
+            }
+        }
+        sections
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Struct {
-    pub wrap_type: String,
-    pub inner_type: String,
-    pub inner_default: String,
-    pub docs: String,
-    pub fields: Vec<StructField>,
-    pub config: TomlConfig,
-}
-
-impl Struct {
-    pub fn empty() -> Self {
-        Struct {
-            wrap_type: String::new(),
-            inner_type: String::new(),
-            inner_default: String::new(),
-            docs: String::new(),
-            fields: Vec::new(),
-            config: TomlConfig::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StructField {
+#[derive(Debug, Clone, Default)]
+pub struct FieldSchema {
     pub ident: String,
     pub docs: String,
-    pub flatten: bool,
+    pub flat: bool,
     pub schema: Schema,
     pub config: TomlConfig,
 }
 
-impl StructField {
-    pub fn empty() -> Self {
-        StructField {
-            ident: String::new(),
-            docs: String::new(),
-            flatten: false,
-            schema: Schema::None,
-            config: TomlConfig::default(),
+impl FieldSchema {
+    pub fn flatten(self) -> Vec<Section> {
+        let FieldSchema {
+            ident,
+            docs,
+            flat,
+            schema,
+            config,
+        } = self;
+        let mut sections = schema.flatten();
+        if !flat {
+            for section in &mut sections {
+                section.meta.valued_docs = docs.clone();
+                section.meta.config = config.clone();
+                if section.is_value() {
+                    for block in &mut section.blocks {
+                        block.meta.valued_docs = docs.clone();
+                        block.meta.config.merge_parent(&config);
+                        block.key = ident.clone();
+                        block.ident = ident.clone();
+                    }
+                } else {
+                    util::increase_key(&mut section.key, &ident);
+                    for block in &mut section.blocks {
+                        util::increase_key(&mut block.key, &ident);
+                    }
+                }
+            }
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PrimaryType {
-    pub wrap_type: String,
-    pub inner_type: String,
-    pub inner_default: String,
-    pub docs: String,
-}
-
-impl PrimaryType {
-    pub fn empty() -> Self {
-        PrimaryType {
-            wrap_type: String::new(),
-            inner_type: String::new(),
-            inner_default: String::new(),
-            docs: String::new(),
-        }
+        sections
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Schema {
-    None,
-    Primary(PrimaryType),
-    Struct(Struct),
-    UnitEnum(UnitEnum),
+    Prim(PrimSchema),
+    Table(TableSchema),
+}
+
+impl Default for Schema {
+    fn default() -> Self {
+        Schema::Prim(PrimSchema::default())
+    }
 }
 
 impl Schema {
-    pub fn set_wrap_type(&mut self, new: String) -> Option<String> {
+    pub fn flatten(self) -> Vec<Section> {
         match self {
-            Schema::None => None,
-            Schema::Primary(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
-            Schema::Struct(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
-            Schema::UnitEnum(ref mut data) => Some(std::mem::replace(&mut data.wrap_type, new)),
+            Schema::Prim(prim) => vec![prim.flatten()],
+            Schema::Table(table) => table.flatten(),
         }
     }
-}
-
-impl Schema {
-    pub fn new_struct() -> Schema {
-        Schema::Struct(Struct::empty())
+    pub fn new_table() -> Schema {
+        Schema::Table(TableSchema::default())
     }
-}
 
-pub trait TomlInput: Serialize + Sized {
-    fn schema() -> Schema;
-    fn schema_to_string() -> Result<String, Error> {
-        let schema = Self::schema();
-        if let Schema::Struct(st) = schema {
-            let meta = RootMeta::from(st);
-            let root = meta.into_root();
-            return root.render();
+    pub fn is_prim(&self) -> bool {
+        matches!(&self, Schema::Prim(_))
+    }
+
+    pub fn is_table(&self) -> bool {
+        matches!(&self, Schema::Table(_))
+    }
+
+    pub fn meta_mut(&mut self) -> &mut Meta {
+        match self {
+            Schema::Prim(schema) => &mut schema.meta,
+            Schema::Table(schema) => &mut schema.meta,
         }
-        return Ok(String::new());
     }
-    fn value_to_string(self) -> Result<String, Error> {
-        let schema = Self::schema();
-        if let Schema::Struct(st) = schema {
-            let meta = RootMeta::from(st);
-            let mut root = meta.into_root();
-            let value = toml::Value::try_from(self).unwrap();
-            root.merge_value(value).unwrap();
-            return root.render();
-        }
-        return Ok(String::new());
-    }
-}
-
-macro_rules! impl_type_info_primary {
-    ($t:ty, $name:expr) => {
-        impl TomlInput for $t {
-            fn schema() -> Schema {
-                let default = <$t as Default>::default();
-                let mut data = PrimaryType::empty();
-                data.inner_type = $name.to_string();
-                data.inner_default = util::value_to_string(&default).unwrap();
-                Schema::Primary(data)
-            }
-        }
-    };
-}
-
-impl_type_info_primary!(bool, "bool");
-impl_type_info_primary!(String, "string");
-impl_type_info_primary!(i8, "i8");
-impl_type_info_primary!(i16, "i16");
-impl_type_info_primary!(i32, "i32");
-impl_type_info_primary!(i64, "i64");
-impl_type_info_primary!(isize, "isize");
-impl_type_info_primary!(u8, "u8");
-impl_type_info_primary!(u16, "u16");
-impl_type_info_primary!(u32, "u32");
-impl_type_info_primary!(u64, "u64");
-impl_type_info_primary!(usize, "usize");
-impl_type_info_primary!(f32, "f32");
-impl_type_info_primary!(f64, "f64");
-impl_type_info_primary!(PathBuf, "path");
-
-impl<T: TomlInput> TomlInput for Option<T> {
-    fn schema() -> Schema {
-        let mut schema = T::schema();
-        schema.set_wrap_type("Option".to_string());
-        schema
-    }
-}
-
-impl<T: TomlInput> TomlInput for Vec<T> {
-    fn schema() -> Schema {
-        let mut schema = T::schema();
-        schema.set_wrap_type("Vec".to_string());
-        schema
+    pub fn set_wrap_type(&mut self, new: String) -> String {
+        let meta = self.meta_mut();
+        std::mem::replace(&mut meta.wrap_type, new)
     }
 }
