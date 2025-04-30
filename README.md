@@ -1,4 +1,4 @@
-# A library to generate toml file with clear options and comments
+# A library to generate toml text with clear options and comments
 
 ## Example 1: toml text from definition (all examples see tests)
 rust code:
