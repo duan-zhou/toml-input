@@ -14,21 +14,16 @@ pub trait TomlInput: Serialize + Sized {
     fn into_value(self) -> Result<Value, Error>;
     fn schema_to_string() -> Result<String, Error> {
         let schema = Self::schema()?;
-        dbg!(&schema);
         let sections = schema.flatten();
         let mut content = TomlContent { sections };
-        dbg!(&content);
         content.config_block_comment(false);
         content.render()
     }
     fn into_string(self) -> Result<String, Error> {
         let schema = Self::schema()?;
-        dbg!(&schema);
         let sections = schema.flatten();
-        dbg!(&sections);
         let mut content = TomlContent { sections };
         let value = self.into_value()?;
-        dbg!(&value);
         content.merge_value(value);
         // dbg!(&content.sections);
         content.render()
@@ -40,7 +35,7 @@ macro_rules! impl_type_info_primary {
         impl TomlInput for $t {
             fn schema() -> Result<Schema, Error> {
                 let default = <$t as Default>::default();
-                let raw = TomlValue::try_from(default).unwrap();
+                let raw = TomlValue::try_from(default)?;
                 let mut meta = Meta::default();
                 meta.inner_type = $name.to_string();
                 meta.inner_default = PrimValue::new(raw);
@@ -51,7 +46,7 @@ macro_rules! impl_type_info_primary {
                 Ok(Schema::Prim(data))
             }
             fn into_value(self) -> Result<Value, Error> {
-                let raw = TomlValue::try_from(self).unwrap();
+                let raw = TomlValue::try_from(self)?;
                 Ok(Value::new_prim(raw))
             }
         }
@@ -76,7 +71,7 @@ impl_type_info_primary!(PathBuf, "path");
 
 impl<T: TomlInput> TomlInput for Option<T> {
     fn schema() -> Result<Schema, Error> {
-        let mut schema = T::schema().unwrap();
+        let mut schema = T::schema()?;
         schema.set_wrap_type("Option".to_string());
         Ok(schema)
     }
@@ -91,7 +86,7 @@ impl<T: TomlInput> TomlInput for Option<T> {
 
 impl<T: TomlInput> TomlInput for Vec<T> {
     fn schema() -> Result<Schema, Error> {
-        let mut schema = T::schema().unwrap();
+        let mut schema = T::schema()?;
         schema.set_wrap_type("Vec".to_string());
         schema.meta_mut().is_array = true;
         Ok(schema)

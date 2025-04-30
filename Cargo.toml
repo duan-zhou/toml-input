@@ -6,10 +6,10 @@ members = [
 ]
 
 [workspace.package]
-version = "0.12.1"
+version = "0.2.0"
 edition = "2021"
 authors = ["duan zhou <duan_zhou@outlook.com>"]
 license = "MIT"
 description = "A lib help generate toml example"
 keywords = ["toml", "config", "document"]
-categories = [ "parser-implementations", "parsing", "config" ]
+categories = [ "parser-implementations", "parsing", "config", "toml" ]

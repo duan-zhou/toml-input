@@ -17,10 +17,11 @@ quote = "1.0"
 syn = { version = "2.0", features = [ "parsing" ] }
 darling = "0.20"
 regex = "1"
+convert_case = "0.8"
 
 [dev-dependencies]
-toml-input = {version = "*", path = "../lib"}
-toml = "*"
-strum = "*"
-strum_macros = "*"
-serde = { version = "*", features = ["derive"] }
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+toml-input = {version = "0.2", path = "../lib"}
+strum = "0.27"
+strum_macros = "0.27"

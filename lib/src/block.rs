@@ -3,7 +3,7 @@ use crate::{
     schema::{Meta, VariantSchema},
     util,
     value::BlockValue,
-    Error, BANG_COMMENT,
+    Error, TomlValue, BANG_COMMENT, COMMENT,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -28,8 +28,23 @@ impl Block {
         !self.is_value()
     }
 
+    pub fn enum_is_expand(&self) -> bool {
+        if !self.is_enum() {
+            return false;
+        }
+        let style = self.meta.config.enum_style.unwrap_or_default();
+        style.can_expand(self.variants.len())
+    }
+
+    pub fn enum_is_fold(&self) -> bool {
+        if !self.is_enum() {
+            return false;
+        }
+        let style = self.meta.config.enum_style.unwrap_or_default();
+        style.can_fold(self.variants.len())
+    }
+
     pub fn render(&self) -> Result<String, Error> {
-        let mut lines = Vec::new();
         let mut block_value = self.meta.inner_default.clone().flatten();
         let mut commented = self.meta.config.block_comment;
         if let Some(value) = self.value.clone() {
@@ -42,34 +57,123 @@ impl Block {
         } else {
             return Ok(String::new());
         }
-        if self.is_enum() {
-            for variant in &self.variants {
-                let comment = util::comment_lines(&variant.docs);
-                if variant.value.tag == block_value.tag {
-                    let line = format!("{} = {}", self.ident, raw_value);
-                    lines.push(comment);
-                    lines.push(line);
-                } else if self.meta.config.enum_expand {
-                    if let Some(value) = &variant.value.raw {
-                        lines.push(comment);
-                        let line = format!("{}{} = {}", BANG_COMMENT, self.ident, value);
-                        lines.push(line)
-                    }
-                }
-            }
+        let tag = block_value.tag;
+        let text;
+        if self.enum_is_expand() {
+            text = self.render_enum_expand(commented, tag, raw_value)?;
+        } else if self.enum_is_fold() {
+            text = self.render_enum_fold(commented, tag, raw_value)?;
+        } else if self.is_enum() {
+            text = self.render_enum_single(commented, tag, raw_value)?;
         } else {
-            let comment = self.comment();
-            let text = comment.render()?;
-            if !text.is_empty() {
-                lines.push(text);
-            }
-            let line = if commented {
-                format!("{}{} = {}", BANG_COMMENT, self.ident, raw_value)
-            } else {
-                format!("{} = {}", self.ident, raw_value)
-            };
-            lines.push(line);
+            text = self.render_single(commented, raw_value)?;
         }
+        Ok(text)
+    }
+
+    fn render_enum_single(
+        &self,
+        commented: bool,
+        tag: String,
+        raw_value: TomlValue,
+    ) -> Result<String, Error> {
+        let mut lines = Vec::new();
+        for variant in &self.variants {
+            let comment = util::comment_lines(&variant.docs);
+            if variant.value.tag == tag {
+                let line = if commented {
+                    format!("{}{} = {}", BANG_COMMENT, self.ident, raw_value)
+                } else {
+                    format!("{} = {}", self.ident, raw_value)
+                };
+                lines.push(comment);
+                lines.push(line);
+                break;
+            }
+        }
+        Ok(lines.join("\n"))
+    }
+
+    fn render_enum_expand(
+        &self,
+        commented: bool,
+        tag: String,
+        raw_value: TomlValue,
+    ) -> Result<String, Error> {
+        if !self.enum_is_expand() {
+            panic!()
+        }
+        let mut lines = Vec::new();
+        for variant in &self.variants {
+            let comment = util::comment_lines(&variant.docs);
+            if variant.value.tag == tag {
+                let line = if commented {
+                    format!("{}{} = {}", BANG_COMMENT, self.ident, raw_value)
+                } else {
+                    format!("{} = {}", self.ident, raw_value)
+                };
+                lines.push(comment);
+                lines.push(line);
+            } else if let Some(value) = &variant.value.raw {
+                lines.push(comment);
+                let line = format!("{}{} = {}", BANG_COMMENT, self.ident, value);
+                lines.push(line)
+            }
+        }
+        Ok(lines.join("\n"))
+    }
+
+    fn render_enum_fold(
+        &self,
+        commented: bool,
+        tag: String,
+        raw_value: TomlValue,
+    ) -> Result<String, Error> {
+        if !self.enum_is_fold() {
+            panic!()
+        }
+        let mut lines = Vec::new();
+        let mut values = Vec::new();
+        for variant in &self.variants {
+            let comment = util::comment_lines(&variant.docs);
+            if variant.value.tag == tag {
+                let line = if commented {
+                    format!("{}{} = {}", BANG_COMMENT, self.ident, raw_value)
+                } else {
+                    format!("{} = {}", self.ident, raw_value)
+                };
+                lines.push(comment);
+                lines.push(line);
+            }
+            if let Some(value) = &variant.value.raw {
+                values.push(format!("{value}"))
+            }
+        }
+        if values.len() > 1 {
+            lines.insert(
+                0,
+                format!("{} {} = {}", COMMENT, self.ident, values.join(" | ")),
+            );
+        }
+        Ok(lines.join("\n"))
+    }
+
+    fn render_single(&self, commented: bool, raw_value: TomlValue) -> Result<String, Error> {
+        if self.is_enum() {
+            panic!()
+        }
+        let mut lines = Vec::new();
+        let comment = self.comment();
+        let text = comment.render()?;
+        if !text.is_empty() {
+            lines.push(text);
+        }
+        let line = if commented {
+            format!("{}{} = {}", BANG_COMMENT, self.ident, raw_value)
+        } else {
+            format!("{} = {}", self.ident, raw_value)
+        };
+        lines.push(line);
         Ok(lines.join("\n"))
     }
 

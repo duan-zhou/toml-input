@@ -9,12 +9,12 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-toml = "*"
-serde = { version = "*", features = ["derive"] }
-toml-input-derive = { version = "*", path = "../derive" }
-bytes = "*"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+toml-input-derive = { version = "0.2", path = "../derive" }
+bytes = "1"
+thiserror = "2.0.12"
 
 [dev-dependencies]
-serde_repr = "0.1"
-strum = "*"
-strum_macros = "*"
+strum = "0.27"
+strum_macros = "0.27"

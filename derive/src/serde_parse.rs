@@ -1,13 +1,58 @@
+use convert_case::{Case, Casing};
 use regex::Regex;
 use syn::{Attribute, Meta, MetaList};
 
-use crate::case::RenameRule;
+#[derive(Default)]
+pub struct RenameRule {
+    pub case: Option<Case<'static>>,
+    pub alias: Option<String>,
+}
+
+impl RenameRule {
+    pub fn new_case(case: Case<'static>) -> Self {
+        RenameRule {
+            case: Some(case),
+            alias: None,
+        }
+    }
+
+    pub fn case_to(&self, origin: String) -> String {
+        if let Some(case) = self.case {
+            origin.to_case(case)
+        } else {
+            origin
+        }
+    }
+
+    pub fn alias(&self, origin: String) -> String {
+        if let Some(alias) = &self.alias {
+            alias.to_string()
+        } else {
+            origin
+        }
+    }
+}
 
 pub fn rename_rule(attrs: &[Attribute]) -> RenameRule {
-    let mut rule = RenameRule::None;
+    let mut rule = RenameRule::default();
     if let Some(text) = parse_serde_text(attrs) {
-        let rename_text = parse_rename(&text).unwrap_or("".to_string());
-        rule = RenameRule::new(&rename_text);
+        let text = text.trim();
+        let rename_text = parse_rename(text).unwrap_or("".to_string());
+        rule = match rename_text.as_str() {
+            "lowercase" => RenameRule::new_case(Case::Lower),
+            "UPPERCASE" => RenameRule::new_case(Case::Upper),
+            "PascalCase" => RenameRule::new_case(Case::Pascal),
+            "camelCase" => RenameRule::new_case(Case::Camel),
+            "snake_case" => RenameRule::new_case(Case::Snake),
+            "SCREAMING_SNAKE_CASE" => RenameRule::new_case(Case::UpperSnake),
+            "kebab-case" => RenameRule::new_case(Case::Kebab),
+            "SCREAMING-KEBAB-CASE" => RenameRule::new_case(Case::UpperKebab),
+            _ if text.is_empty() => RenameRule {
+                alias: Some(text.to_string()),
+                ..Default::default()
+            },
+            _ => RenameRule::default(),
+        };
     }
     rule
 }

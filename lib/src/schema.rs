@@ -2,7 +2,7 @@ use crate::comment::Comment;
 use crate::config::TomlConfig;
 use crate::util;
 use crate::value::PrimValue;
-
+use crate::TomlValue;
 use crate::{block::Block, section::Section};
 
 #[derive(Debug, Clone, Default)]
@@ -121,6 +121,11 @@ impl FieldSchema {
             }
         }
         sections
+    }
+
+    pub fn set_inner_default(&mut self, raw: TomlValue) {
+        let meta = self.schema.meta_mut();
+        meta.inner_default.raw = Some(raw);
     }
 }
 

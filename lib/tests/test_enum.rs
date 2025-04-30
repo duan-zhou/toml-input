@@ -27,7 +27,7 @@ fn test_schema() {
         }
     }
     let text = Test::schema_to_string().unwrap();
-    // println!("{}", text);
+    println!("{}", text);
     let res = r#"# comment `Test`
 
 # comment `a`
@@ -84,14 +84,14 @@ b = "A"
 }
 
 #[test]
-fn test_expand() {
+fn test_single() {
     /// comment `Test`
     #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, Default, PartialEq)]
     struct Test {
         /// comment `a`
         a: i32,
         /// comment `b`
-        #[toml_input(enum_expand = false)]
+        #[toml_input(enum_style = "single")]
         b: TestEnum,
     }
     /// comment `TestEnum`
@@ -113,11 +113,54 @@ fn test_expand() {
         b: TestEnum::B,
     };
     let text = test.clone().into_string().unwrap();
-    // println!("{}", text);
+    println!("{}", text);
     let res = r#"# comment `Test`
 
 # comment `a`
 a = 0
+# comment `B`
+b = "B""#;
+    assert_eq!(res, text);
+    let test1: Test = toml::from_str(&res).unwrap();
+    assert_eq!(test, test1);
+}
+
+#[test]
+fn test_fold() {
+    /// comment `Test`
+    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, Default, PartialEq)]
+    struct Test {
+        /// comment `a`
+        a: i32,
+        /// comment `b`
+        #[toml_input(enum_style = "fold")]
+        b: TestEnum,
+    }
+    /// comment `TestEnum`
+    #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
+    #[allow(dead_code)]
+    enum TestEnum {
+        /// comment `A`
+        A,
+        /// comment `B`
+        B,
+    }
+    impl Default for TestEnum {
+        fn default() -> Self {
+            TestEnum::B
+        }
+    }
+    let test = Test {
+        a: 0,
+        b: TestEnum::B,
+    };
+    let text = test.clone().into_string().unwrap();
+    println!("{}", text);
+    let res = r#"# comment `Test`
+
+# comment `a`
+a = 0
+# b = "A" | "B"
 # comment `B`
 b = "B""#;
     assert_eq!(res, text);
