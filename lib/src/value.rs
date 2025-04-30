@@ -2,6 +2,7 @@ use toml::{map::Map, Value as TomlValue};
 
 use crate::util;
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct BlockValue {
     pub key: String,
     pub tag: String,
@@ -9,16 +10,6 @@ pub struct BlockValue {
     pub array_index: Option<usize>,
 }
 
-impl Default for BlockValue {
-    fn default() -> Self {
-        BlockValue {
-            key: String::default(),
-            tag: String::default(),
-            value: None,
-            array_index: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct PrimValue {

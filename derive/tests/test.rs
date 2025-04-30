@@ -23,16 +23,14 @@ fn test_enum() {
     /// this is comment of enum
     #[derive(EnumIter, AsRefStr, TomlInput, Debug, Serialize)]
     #[toml_input(enum_style = "expand")]
+    #[derive(Default)]
     enum TestEnum {
         A,
+        #[default]
         B,
         C2,
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B
-        }
-    }
+    
     use toml_input::TomlInput;
     dbg!(TestEnum::schema().unwrap());
 }

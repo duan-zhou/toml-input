@@ -15,17 +15,15 @@ fn test_schema() {
     /// comment `TestEnum`
     #[allow(dead_code)]
     #[derive(Debug, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize)]
+    #[derive(Default)]
     enum TestEnum {
         /// comment `A`
         A,
         /// comment `B`
+        #[default]
         B,
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B
-        }
-    }
+    
     let text = Test::schema_to_string().unwrap();
     println!("{}", text);
     let res = r#"# comment `Test`
@@ -37,7 +35,7 @@ a = 0
 # comment `B`
 b = "B""#;
     assert_eq!(res, text);
-    let _: Test = toml::from_str(&res).unwrap();
+    let _: Test = toml::from_str(res).unwrap();
 }
 
 #[test]
@@ -53,17 +51,15 @@ fn test_value() {
     /// comment `TestEnum`
     #[allow(dead_code)]
     #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, PartialEq, Deserialize)]
+    #[derive(Default)]
     enum TestEnum {
         /// comment `A`
         A,
         /// comment `B`
+        #[default]
         B,
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B
-        }
-    }
+    
     let test = Test {
         a: 1,
         b: TestEnum::A,
@@ -79,7 +75,7 @@ b = "A"
 # comment `B`
 #!b = "B""#;
     assert_eq!(res, text);
-    let test1: Test = toml::from_str(&res).unwrap();
+    let test1: Test = toml::from_str(res).unwrap();
     assert_eq!(test, test1);
 }
 
@@ -97,17 +93,15 @@ fn test_single() {
     /// comment `TestEnum`
     #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
     #[allow(dead_code)]
+    #[derive(Default)]
     enum TestEnum {
         /// comment `A`
         A,
         /// comment `B`
+        #[default]
         B,
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B
-        }
-    }
+    
     let test = Test {
         a: 0,
         b: TestEnum::B,
@@ -121,7 +115,7 @@ a = 0
 # comment `B`
 b = "B""#;
     assert_eq!(res, text);
-    let test1: Test = toml::from_str(&res).unwrap();
+    let test1: Test = toml::from_str(res).unwrap();
     assert_eq!(test, test1);
 }
 
@@ -139,17 +133,15 @@ fn test_fold() {
     /// comment `TestEnum`
     #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
     #[allow(dead_code)]
+    #[derive(Default)]
     enum TestEnum {
         /// comment `A`
         A,
         /// comment `B`
+        #[default]
         B,
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B
-        }
-    }
+    
     let test = Test {
         a: 0,
         b: TestEnum::B,
@@ -164,7 +156,7 @@ a = 0
 # comment `B`
 b = "B""#;
     assert_eq!(res, text);
-    let test1: Test = toml::from_str(&res).unwrap();
+    let test1: Test = toml::from_str(res).unwrap();
     assert_eq!(test, test1);
 }
 
@@ -207,7 +199,7 @@ a = 0
 # comment `B`
 b = { B = "test B" }"#;
     assert_eq!(res, text);
-    let test1: Test = toml::from_str(&res).unwrap();
+    let test1: Test = toml::from_str(res).unwrap();
     assert_eq!(test, test1);
 }
 
@@ -224,17 +216,15 @@ fn test_struct() {
     /// comment `TestEnum`
     #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
     #[allow(dead_code)]
+    #[derive(Default)]
     enum TestEnum {
         /// comment `A`
+        #[default]
         A,
         /// comment `B`
         B { c: usize, d: f64 },
     }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::A
-        }
-    }
+    
     let test = Test {
         a: 0,
         b: TestEnum::B { c: 2, d: 1.5 },
@@ -250,6 +240,6 @@ a = 0
 # comment `B`
 b = { B = { c = 2, d = 1.5 } }"#;
     assert_eq!(res, text);
-    let test1: Test = toml::from_str(&res).unwrap();
+    let test1: Test = toml::from_str(res).unwrap();
     assert_eq!(test, test1);
 }

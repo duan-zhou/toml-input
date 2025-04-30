@@ -24,16 +24,12 @@ pub fn comment_lines(text: &str) -> String {
 
 pub fn append_line(text: &mut String) {
     if !text.trim().is_empty() {
-        text.push_str("\n");
+        text.push('\n');
     }
 }
 
 pub fn remove_prefix_tag(key: &str) -> String {
-    let key = key.trim();
-    if key.starts_with(".") {
-        return key[1..].to_string();
-    }
-    key.to_string()
+    key.trim().strip_prefix(".").unwrap_or(key).to_string()
 }
 
 pub fn increase_key(key: &mut String, ident: impl AsRef<str>) {

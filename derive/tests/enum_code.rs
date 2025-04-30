@@ -1,15 +1,12 @@
 use serde::Serialize;
 use strum_macros::{AsRefStr, EnumIter};
 #[derive(EnumIter, AsRefStr, Debug, Serialize)]
+#[derive(Default)]
 enum TestEnum {
     A,
+    #[default]
     B,
     C2,
-}
-impl Default for TestEnum {
-    fn default() -> Self {
-        TestEnum::B
-    }
 }
 
 impl toml_input::TomlInput for TestEnum {

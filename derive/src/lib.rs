@@ -51,7 +51,6 @@ pub fn derive(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     };
-    println!("{}", token);
     token.into()
 }
 
@@ -125,9 +124,9 @@ fn quote_struct_schema(
     config: Config,
 ) -> TokenStream {
     let struct_ident = ident;
-    let struct_docs = parse_docs(&attrs);
+    let struct_docs = parse_docs(attrs);
     let inner_type = struct_ident.to_string();
-    let struct_rule = serde_parse::rename_rule(&attrs);
+    let struct_rule = serde_parse::rename_rule(attrs);
     let mut tokens = Vec::new();
     for field in fields {
         let FieldRaw {
@@ -184,7 +183,7 @@ fn quote_struct_schema(
 }
 
 fn quote_struct_value(attrs: &[Attribute], fields: Fields<FieldRaw>) -> TokenStream {
-    let struct_rule = serde_parse::rename_rule(&attrs);
+    let struct_rule = serde_parse::rename_rule(attrs);
     let mut tokens = Vec::new();
     for field in fields {
         let FieldRaw { ident, attrs, .. } = field;
@@ -261,20 +260,14 @@ fn parse_docs(attrs: &[Attribute]) -> String {
 }
 
 fn extract_inner_type(ty: &syn::Type) -> TokenStream {
-    match ty {
-        Type::Path(TypePath { path, .. }) => {
-            if let Some(segment) = path.segments.last() {
-                match &segment.arguments {
-                    PathArguments::AngleBracketed(args) => {
-                        if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
-                            return inner_ty.into_token_stream();
-                        }
-                    }
-                    _ => {}
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(segment) = path.segments.last() {
+            if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+                    return inner_ty.into_token_stream();
                 }
             }
         }
-        _ => {}
     }
     TokenStream::new()
 }
@@ -313,8 +306,10 @@ impl Config {
 }
 
 #[derive(Debug, Clone, FromMeta)]
+#[derive(Default)]
 enum EnumStyle {
     Single,
+    #[default]
     Expand,
     Fold,
     Flex,
@@ -329,11 +324,6 @@ enum EnumStyle {
     Flex12,
 }
 
-impl Default for EnumStyle {
-    fn default() -> Self {
-        EnumStyle::Expand
-    }
-}
 
 impl ToTokens for EnumStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {

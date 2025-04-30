@@ -1,7 +1,9 @@
 use crate::{config::TomlConfig, error::Error, util, PrimValue};
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum CommentType {
+    #[default]
     None,
     Root,
     Section,
@@ -9,11 +11,6 @@ pub enum CommentType {
     BlockVariant,
 }
 
-impl Default for CommentType {
-    fn default() -> Self {
-        CommentType::None
-    }
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct Comment {
@@ -32,7 +29,7 @@ impl Comment {
     }
 
     pub fn render(&self) -> Result<String, Error> {
-        let text = if self.valued_docs.len() > 0 {
+        let text = if !self.valued_docs.is_empty() {
             self.valued_docs.clone()
         } else {
             self.defined_docs.clone()

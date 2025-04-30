@@ -16,7 +16,7 @@ impl Default for TomlConfig {
 impl TomlConfig {
     pub fn merge_parent(&mut self, parent: &TomlConfig) {
         if self.enum_style.is_none() {
-            self.enum_style = parent.enum_style.clone();
+            self.enum_style = parent.enum_style;
         }
     }
 }

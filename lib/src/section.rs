@@ -29,7 +29,7 @@ impl Default for Section {
 
 impl Section {
     pub fn is_root(&self) -> bool {
-        self.key == ROOT_KEY && self.blocks.len() > 0
+        self.key == ROOT_KEY && !self.blocks.is_empty()
     }
     pub fn is_value(&self) -> bool {
         self.key == ROOT_KEY && self.blocks.len() == 1 && self.blocks[0].is_value()
@@ -53,7 +53,7 @@ impl Section {
         let mut map: HashMap<String, &mut Section> = HashMap::new();
         for section in sections.iter_mut() {
             if let Some(s) = map.get_mut(&section.key) {
-                (*s).blocks.append(&mut section.blocks);
+                s.blocks.append(&mut section.blocks);
             } else {
                 map.insert(section.key.clone(), section);
             }

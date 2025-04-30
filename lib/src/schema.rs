@@ -18,13 +18,14 @@ pub struct Meta {
 
 impl Meta {
     pub fn comment(&self) -> Comment {
-        let mut comment = Comment::default();
-        comment.config = self.config.clone();
-        comment.defined_docs = self.defined_docs.clone();
-        comment.valued_docs = self.valued_docs.clone();
-        comment.inner_type = self.inner_type.clone();
-        comment.inner_default = self.inner_default.clone();
-        comment
+        Comment {
+            config: self.config.clone(),
+            defined_docs: self.defined_docs.clone(),
+            valued_docs: self.valued_docs.clone(),
+            inner_type: self.inner_type.clone(),
+            inner_default: self.inner_default.clone(),
+            ..Default::default()
+        }
     }
 }
 

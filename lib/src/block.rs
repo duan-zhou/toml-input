@@ -17,7 +17,7 @@ pub struct Block {
 
 impl Block {
     pub fn is_enum(&self) -> bool {
-        self.variants.len() > 0
+        !self.variants.is_empty()
     }
 
     pub fn is_value(&self) -> bool {
