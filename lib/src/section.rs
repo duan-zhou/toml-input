@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use crate::{
+    ROOT_KEY, Value,
     block::Block,
     comment::{Comment, CommentType},
     error::Error,
     schema::Meta,
-    util, Value, ROOT_KEY,
+    util,
 };
 
 #[derive(Debug, Clone)]
@@ -51,14 +52,18 @@ impl Section {
 
     pub fn reduce(sections: &mut Vec<Section>) {
         let mut map: HashMap<String, &mut Section> = HashMap::new();
-        for section in sections.iter_mut() {
+        let mut dup = Vec::new();
+        for (i, section) in sections.iter_mut().enumerate() {
             if let Some(s) = map.get_mut(&section.key) {
                 s.blocks.append(&mut section.blocks);
+                dup.push(i);
             } else {
                 map.insert(section.key.clone(), section);
             }
         }
-        sections.dedup_by_key(|section| section.key.clone());
+        for (i, index) in dup.iter().enumerate() {
+            sections.remove(index - i);
+        }
     }
 
     pub fn render(&self) -> Result<String, Error> {

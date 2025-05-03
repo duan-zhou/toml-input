@@ -112,10 +112,14 @@ impl Block {
                 } else {
                     format!("{} = {}", self.ident, raw_value)
                 };
-                lines.push(comment);
+                if comment.len() > 0 {
+                    lines.push(comment);
+                }
                 lines.push(line);
             } else if let Some(value) = &variant.value.raw {
-                lines.push(comment);
+                if comment.len() > 0 {
+                    lines.push(comment);
+                }
                 let line = format!("{}{} = {}", BANG_COMMENT, self.ident, value);
                 lines.push(line)
             }

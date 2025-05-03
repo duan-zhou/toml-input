@@ -44,32 +44,32 @@ b = "B"
 ## Example 2: toml text from value
 rust code:
 ```rust
-    /// comment `Test`
-    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, Default, PartialEq)]
-    struct Test {
-        /// comment `a`
-        a: i32,
-        /// comment `b`
-        #[toml_input(enum_style = "fold")]
-        b: TestEnum,
-    }
-    /// comment `TestEnum`
-    #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
-    #[allow(dead_code)]
-    #[derive(Default)]
-    enum TestEnum {
-        /// comment `A`
-        A,
-        /// comment `B`
-        #[default]
-        B,
-    }
-    
-    let test = Test {
-        a: 0,
-        b: TestEnum::B,
-    };
-    let text = test.into_string().unwrap();
+/// comment `Test`
+#[derive(Debug, Clone, TomlInput, Serialize, Deserialize, Default, PartialEq)]
+struct Test {
+    /// comment `a`
+    a: i32,
+    /// comment `b`
+    #[toml_input(enum_style = "fold")]
+    b: TestEnum,
+}
+/// comment `TestEnum`
+#[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
+#[derive(Default)]
+enum TestEnum {
+    /// comment `A`
+    A,
+    /// comment `B`
+    #[default]
+    B,
+}
+
+let test = Test {
+    a: 0,
+    b: TestEnum::B,
+};
+let text = test.into_string().unwrap();
 ```
 toml text:
 ```toml
@@ -85,33 +85,33 @@ b = "B"
 ## Example 3: enum tuple
 rust code:
 ```rust
-    /// comment `Test`
-    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq, Default)]
-    struct Test {
-        /// comment `a`
-        a: i32,
-        /// comment `b`
-        b: TestEnum,
+/// comment `Test`
+#[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq, Default)]
+struct Test {
+    /// comment `a`
+    a: i32,
+    /// comment `b`
+    b: TestEnum,
+}
+/// comment `TestEnum`
+#[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
+enum TestEnum {
+    /// comment `A`
+    A,
+    /// comment `B`
+    B(String),
+}
+impl Default for TestEnum {
+    fn default() -> Self {
+        TestEnum::B(String::new())
     }
-    /// comment `TestEnum`
-    #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, PartialEq)]
-    #[allow(dead_code)]
-    enum TestEnum {
-        /// comment `A`
-        A,
-        /// comment `B`
-        B(String),
-    }
-    impl Default for TestEnum {
-        fn default() -> Self {
-            TestEnum::B(String::new())
-        }
-    }
-    let test = Test {
-        a: 0,
-        b: TestEnum::B("test B".to_string()),
-    };
-    let text = test.into_string().unwrap();
+}
+let test = Test {
+    a: 0,
+    b: TestEnum::B("test B".to_string()),
+};
+let text = test.into_string().unwrap();
 ```
 toml text:
 ```toml
