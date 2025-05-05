@@ -1,9 +1,9 @@
 use crate::{
+    BANG_COMMENT, COMMENT, Error, TomlValue,
     comment::{Comment, CommentType},
     schema::{Meta, VariantSchema},
     util,
     value::BlockValue,
-    Error, TomlValue, BANG_COMMENT, COMMENT,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -28,6 +28,10 @@ impl Block {
         !self.is_value()
     }
 
+    pub fn is_comented(&self) -> bool {
+        self.value.is_none() && self.meta.config.commented
+    }
+
     pub fn enum_is_expand(&self) -> bool {
         if !self.is_enum() {
             return false;
@@ -46,7 +50,7 @@ impl Block {
 
     pub fn render(&self) -> Result<String, Error> {
         let mut block_value = self.meta.inner_default.clone().flatten();
-        let mut commented = self.meta.config.block_comment;
+        let mut commented = self.meta.config.commented;
         if let Some(value) = self.value.clone() {
             block_value = value;
             commented = false;

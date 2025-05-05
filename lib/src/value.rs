@@ -1,15 +1,13 @@
-use toml::{map::Map, Value as TomlValue};
+use toml::{Value as TomlValue, map::Map};
 
 use crate::util;
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct BlockValue {
     pub key: String,
     pub tag: String,
     pub value: Option<TomlValue>,
     pub array_index: Option<usize>,
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct PrimValue {

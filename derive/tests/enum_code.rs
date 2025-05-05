@@ -1,7 +1,6 @@
 use serde::Serialize;
 use strum_macros::{AsRefStr, EnumIter};
-#[derive(EnumIter, AsRefStr, Debug, Serialize)]
-#[derive(Default)]
+#[derive(EnumIter, AsRefStr, Debug, Serialize, Default)]
 enum TestEnum {
     A,
     #[default]

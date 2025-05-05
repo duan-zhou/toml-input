@@ -1,15 +1,15 @@
 extern crate proc_macro;
 
-use darling::{
-    ast::{self, Data, Fields},
-    FromField, FromVariant,
-};
 use darling::{FromDeriveInput, FromMeta};
+use darling::{
+    FromField, FromVariant,
+    ast::{self, Data, Fields},
+};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    parse_macro_input, Attribute, DeriveInput, Expr, ExprLit, Ident, Lit, Meta, PathArguments,
-    Type, TypePath,
+    Attribute, DeriveInput, Expr, ExprLit, Ident, Lit, Meta, PathArguments, Type, TypePath,
+    parse_macro_input,
 };
 mod serde_parse;
 
@@ -305,8 +305,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, FromMeta)]
-#[derive(Default)]
+#[derive(Debug, Clone, FromMeta, Default)]
 enum EnumStyle {
     Single,
     #[default]
@@ -323,7 +322,6 @@ enum EnumStyle {
     Flex11,
     Flex12,
 }
-
 
 impl ToTokens for EnumStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {

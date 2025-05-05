@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
+    Schema, TomlValue, Value,
     error::Error,
     schema::{Meta, PrimSchema},
     section::TomlContent,
     value::{ArrayValue, PrimValue},
-    Schema, TomlValue, Value,
 };
 use serde::Serialize;
 
@@ -16,7 +16,7 @@ pub trait TomlInput: Serialize + Sized {
         let schema = Self::schema()?;
         let sections = schema.flatten();
         let mut content = TomlContent { sections };
-        content.config_block_comment(false);
+        content.config_commented(false);
         content.render()
     }
     fn into_string(self) -> Result<String, Error> {

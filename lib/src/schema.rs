@@ -1,8 +1,8 @@
+use crate::TomlValue;
 use crate::comment::Comment;
 use crate::config::TomlConfig;
 use crate::util;
 use crate::value::PrimValue;
-use crate::TomlValue;
 use crate::{block::Block, section::Section};
 
 #[derive(Debug, Clone, Default)]

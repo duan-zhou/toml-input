@@ -132,7 +132,6 @@ b = [6, 7, 8]"
     assert_eq!(test1, test2);
 }
 
-
 #[test]
 fn test_nested() {
     /// comment `Test`
@@ -180,4 +179,38 @@ b = [2, 3, 4]"#
     assert_eq!(res, text);
     let test2: Test1 = toml::from_str(&text).unwrap();
     assert_eq!(test1, test2);
+}
+
+#[test]
+fn test_section_comment() {
+    /// comment `Test`
+    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq, Default)]
+    struct Test {
+        /// comment `a`
+        a: i32,
+        /// comment `b`
+        b: Option<Test1>,
+    }
+    /// comment `Test1`
+    #[derive(Debug, Clone, TomlInput, Serialize, Default, Deserialize, PartialEq)]
+    struct Test1 {
+        /// comment `c`
+        c: i32,
+    }
+    let test = Test { a: 1, b: None };
+    let res = test.clone().into_string().unwrap();
+    println!("{res}");
+    let text = r#"# comment `Test`
+
+# comment `a`
+a = 1
+
+# comment `b`
+#![b]
+# comment `c`
+#!c = 0"#
+        .to_string();
+    assert_eq!(res, text);
+    let test1: Test = toml::from_str(&text).unwrap();
+    assert_eq!(test, test1);
 }

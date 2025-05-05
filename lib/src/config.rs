@@ -1,14 +1,14 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct TomlConfig {
     pub enum_style: Option<EnumStyle>,
-    pub block_comment: bool,
+    pub commented: bool,
 }
 
 impl Default for TomlConfig {
     fn default() -> Self {
         TomlConfig {
             enum_style: None,
-            block_comment: true,
+            commented: true,
         }
     }
 }

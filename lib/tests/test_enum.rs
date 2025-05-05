@@ -14,8 +14,7 @@ fn test_schema() {
     }
     /// comment `TestEnum`
     #[allow(dead_code)]
-    #[derive(Debug, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize)]
-    #[derive(Default)]
+    #[derive(Debug, EnumIter, AsRefStr, TomlInput, Serialize, Deserialize, Default)]
     enum TestEnum {
         /// comment `A`
         A,
@@ -23,7 +22,7 @@ fn test_schema() {
         #[default]
         B,
     }
-    
+
     let text = Test::schema_to_string().unwrap();
     println!("{}", text);
     let res = r#"# comment `Test`
@@ -50,8 +49,9 @@ fn test_value() {
     }
     /// comment `TestEnum`
     #[allow(dead_code)]
-    #[derive(Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, PartialEq, Deserialize)]
-    #[derive(Default)]
+    #[derive(
+        Debug, Clone, EnumIter, AsRefStr, TomlInput, Serialize, PartialEq, Deserialize, Default,
+    )]
     enum TestEnum {
         /// comment `A`
         A,
@@ -59,7 +59,7 @@ fn test_value() {
         #[default]
         B,
     }
-    
+
     let test = Test {
         a: 1,
         b: TestEnum::A,
@@ -101,7 +101,7 @@ fn test_single() {
         #[default]
         B,
     }
-    
+
     let test = Test {
         a: 0,
         b: TestEnum::B,
@@ -141,7 +141,7 @@ fn test_fold() {
         #[default]
         B,
     }
-    
+
     let test = Test {
         a: 0,
         b: TestEnum::B,
@@ -224,7 +224,7 @@ fn test_struct() {
         /// comment `B`
         B { c: usize, d: f64 },
     }
-    
+
     let test = Test {
         a: 0,
         b: TestEnum::B { c: 2, d: 1.5 },

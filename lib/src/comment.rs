@@ -1,7 +1,6 @@
-use crate::{config::TomlConfig, error::Error, util, PrimValue};
+use crate::{PrimValue, config::TomlConfig, error::Error, util};
 
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum CommentType {
     #[default]
     None,
@@ -10,7 +9,6 @@ pub enum CommentType {
     BlockField,
     BlockVariant,
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct Comment {

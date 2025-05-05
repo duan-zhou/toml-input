@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ROOT_KEY, Value,
+    BANG_COMMENT, ROOT_KEY, Value,
     block::Block,
     comment::{Comment, CommentType},
     error::Error,
@@ -34,6 +34,14 @@ impl Section {
     }
     pub fn is_value(&self) -> bool {
         self.key == ROOT_KEY && self.blocks.len() == 1 && self.blocks[0].is_value()
+    }
+
+    pub fn is_commented(&self) -> bool {
+        let mut commented = self.meta.config.commented;
+        for block in &self.blocks {
+            commented = commented && block.is_comented();
+        }
+        commented
     }
 
     pub fn assigned_to(&mut self, ident: impl AsRef<str>) {
@@ -80,7 +88,12 @@ impl Section {
         } else {
             ("[".to_string(), "]".to_string())
         };
-        lines.push(format!("{}{}{}", left, self.key, right));
+        let bang = if self.is_commented() && (self.key != ROOT_KEY) {
+            BANG_COMMENT
+        } else {
+            ""
+        };
+        lines.push(format!("{bang}{}{}{}", left, self.key, right));
         for block in &self.blocks {
             lines.push(block.render()?)
         }
@@ -144,10 +157,11 @@ impl TomlContent {
         }
     }
 
-    pub fn config_block_comment(&mut self, commented: bool) {
+    pub fn config_commented(&mut self, commented: bool) {
         for section in &mut self.sections {
+            section.meta.config.commented = commented;
             for block in &mut section.blocks {
-                block.meta.config.block_comment = commented;
+                block.meta.config.commented = commented;
             }
         }
     }

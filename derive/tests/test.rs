@@ -30,7 +30,7 @@ fn test_enum() {
         B,
         C2,
     }
-    
+
     use toml_input::TomlInput;
     dbg!(TestEnum::schema().unwrap());
 }
