@@ -214,3 +214,45 @@ a = 1
     let test1: Test = toml::from_str(&text).unwrap();
     assert_eq!(test, test1);
 }
+
+#[test]
+fn test_skip() {
+    /// comment `Test`
+    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq)]
+    #[serde(default)]
+    struct Test {
+        /// comment `a`
+        a: i32,
+        /// comment `b`
+        b: Option<usize>,
+        /// skipped
+        #[serde(skip)]
+        c: i32,
+    }
+
+    impl Default for Test {
+        fn default() -> Self {
+            Test {
+                a: 0,
+                b: Some(1),
+                c: 2,
+            }
+        }
+    }
+    let test = Test {
+        a: 2,
+        b: Some(3),
+        c: 2,
+    };
+    let res = test.clone().into_string().unwrap();
+    let text = "# comment `Test`
+
+# comment `a`
+a = 2
+# comment `b`
+b = 3"
+        .to_string();
+    assert_eq!(res, text);
+    let test1: Test = toml::from_str(&text).unwrap();
+    assert_eq!(test, test1);
+}

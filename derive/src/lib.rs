@@ -136,6 +136,9 @@ fn quote_struct_schema(
             enum_style,
             inner_default,
         } = field;
+        if serde_parse::skip(&attrs) {
+            continue;
+        }
         let field_ident = ident.unwrap();
         let field_docs = parse_docs(&attrs);
         let field_rule = serde_parse::rename_rule(&attrs);

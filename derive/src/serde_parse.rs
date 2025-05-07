@@ -65,6 +65,14 @@ pub fn flatten(attrs: &[Attribute]) -> bool {
     false
 }
 
+pub fn skip(attrs: &[Attribute]) -> bool {
+    if let Some(text) = parse_serde_text(attrs) {
+        let re = Regex::new(r",?s*skip").unwrap();
+        return re.is_match(&text);
+    }
+    false
+}
+
 fn parse_serde_text(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
         if !attr.path().is_ident("serde") {

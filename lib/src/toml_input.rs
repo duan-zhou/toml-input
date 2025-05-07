@@ -25,7 +25,6 @@ pub trait TomlInput: Serialize + Sized {
         let mut content = TomlContent { sections };
         let value = self.into_value()?;
         content.merge_value(value);
-        // dbg!(&content.sections);
         content.render()
     }
 }
