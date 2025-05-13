@@ -21,9 +21,11 @@ pub fn derive(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
         attrs,
         data,
         enum_style,
+        option_style,
     } = StructRaw::from_derive_input(&input).unwrap();
     let config = Config {
         enum_style,
+        option_style,
         ..Default::default()
     };
     let schema_token;
@@ -134,6 +136,7 @@ fn quote_struct_schema(
             attrs,
             ty,
             enum_style,
+            option_style,
             inner_default,
         } = field;
         if serde_parse::skip(&attrs) {
@@ -148,9 +151,11 @@ fn quote_struct_schema(
         let field_flatten = serde_parse::flatten(&attrs);
         let field_config = Config {
             enum_style: enum_style.or(config.enum_style.clone()),
+            option_style,
             inner_default,
         };
         let enum_style_token = field_config.enum_style_token(quote! {field});
+        let option_style_token = field_config.option_style_token(quote! {field});
         let inner_type = extract_inner_type(&ty);
         let inner_default_token = field_config.inner_default_token(quote! {field}, inner_type);
         let field_token = quote! {
@@ -160,14 +165,17 @@ fn quote_struct_schema(
             field.flat = #field_flatten;
             field.schema = <#ty as toml_input::TomlInput>::schema()?;
             #enum_style_token
+            #option_style_token
             #inner_default_token
             table.fields.push(field);
         };
         tokens.push(field_token);
     }
-    let enum_style_token = config.enum_style_token(quote! {table});
+    let enum_style_token = config.enum_style_token(quote! {meta});
+    let option_style_token = config.option_style_token(quote! {meta});
     let struct_token = quote! {
         use std::str::FromStr;
+        use toml_input::config::OptionStyle;
         let default = <#struct_ident as Default>::default();
         let mut table = schema::TableSchema::default();
         let mut meta = schema::Meta::default();
@@ -176,8 +184,9 @@ fn quote_struct_schema(
         let raw = toml::Value::try_from(default)?;
         meta.inner_default = toml_input::PrimValue::new(raw);
         meta.defined_docs = #struct_docs.to_string();
-        table.meta = meta;
         #enum_style_token
+        #option_style_token
+        table.meta = meta;
         table.fields = Vec::new();
         #(#tokens)*
         Ok(schema::Schema::Table(table))
@@ -224,6 +233,8 @@ struct StructRaw {
     attrs: Vec<Attribute>,
     data: ast::Data<VariantRaw, FieldRaw>,
     enum_style: Option<EnumStyle>,
+    #[darling(default)]
+    option_style: OptionStyle,
 }
 
 #[derive(Debug, Clone, FromField)]
@@ -233,6 +244,8 @@ struct FieldRaw {
     attrs: Vec<Attribute>,
     ty: Type,
     enum_style: Option<EnumStyle>,
+    #[darling(default)]
+    option_style: OptionStyle,
     inner_default: Option<String>,
 }
 
@@ -278,6 +291,7 @@ fn extract_inner_type(ty: &syn::Type) -> TokenStream {
 #[derive(Clone, Default)]
 struct Config {
     enum_style: Option<EnumStyle>,
+    option_style: OptionStyle,
     inner_default: Option<String>,
 }
 
@@ -289,6 +303,14 @@ impl Config {
                 #tag.config.enum_style = Some(#enum_style);
             };
         }
+        token
+    }
+
+    fn option_style_token(&self, tag: TokenStream) -> TokenStream {
+        let option_style = &self.option_style;
+        let token = quote! {
+            #tag.config.option_style = #option_style;
+        };
         token
     }
 
@@ -342,6 +364,23 @@ impl ToTokens for EnumStyle {
             EnumStyle::Flex10 => quote! { EnumStyle::Flex(10) },
             EnumStyle::Flex11 => quote! { EnumStyle::Flex(11) },
             EnumStyle::Flex12 => quote! { EnumStyle::Flex(12) },
+        };
+        tokens.extend(token);
+    }
+}
+
+#[derive(Debug, Clone, FromMeta, Default)]
+enum OptionStyle {
+    SkipNone,
+    #[default]
+    ExpandNone,
+}
+
+impl ToTokens for OptionStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let token = match self {
+            OptionStyle::SkipNone => quote! {OptionStyle::SkipNone},
+            OptionStyle::ExpandNone => quote! {OptionStyle::ExpandNone},
         };
         tokens.extend(token);
     }

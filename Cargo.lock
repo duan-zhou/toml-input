@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "toml-input"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "bytes",
  "serde",
@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "toml-input-derive"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "convert_case",
  "darling",

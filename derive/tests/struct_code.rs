@@ -13,6 +13,7 @@ impl toml_input::TomlInput for TestStruct {
     fn schema() -> Result<toml_input::Schema, toml_input::Error> {
         use std::str::FromStr;
         use toml;
+        use toml_input::config::OptionStyle;
         use toml_input::schema;
         let default = <TestStruct as Default>::default();
         let mut table = schema::TableSchema::default();
@@ -22,6 +23,7 @@ impl toml_input::TomlInput for TestStruct {
         let raw = toml::Value::try_from(default)?;
         meta.inner_default = toml_input::PrimValue::new(raw);
         meta.defined_docs = " this is comment of struct".to_string();
+        meta.config.option_style = OptionStyle::ExpandNone;
         table.meta = meta;
         table.fields = Vec::new();
         let mut field = schema::FieldSchema::default();
@@ -29,12 +31,14 @@ impl toml_input::TomlInput for TestStruct {
         field.docs = " this is comment of field".to_string();
         field.flat = false;
         field.schema = <i32 as toml_input::TomlInput>::schema()?;
+        field.config.option_style = OptionStyle::ExpandNone;
         table.fields.push(field);
         let mut field = schema::FieldSchema::default();
         field.ident = "b".to_string();
         field.docs = " optional field".to_string();
         field.flat = false;
         field.schema = <Option<u32> as toml_input::TomlInput>::schema()?;
+        field.config.option_style = OptionStyle::ExpandNone;
         let value =
             u32::from_str("1").map_err(|err| toml_input::Error::FromStrError(err.to_string()))?;
         let raw = toml::Value::try_from(value)?;
