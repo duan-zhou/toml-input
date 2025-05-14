@@ -73,13 +73,7 @@ impl TableSchema {
     pub fn flatten(self) -> Vec<Section> {
         let TableSchema { meta, fields } = self;
         let mut sections = Vec::new();
-        let table_skip_none = meta.config.option_style.is_skip_none();
         for field in fields {
-            if (table_skip_none || field.config.option_style.is_skip_none())
-                && field.schema.meta().is_option_type()
-            {
-                continue;
-            }
             sections.append(&mut field.flatten());
         }
         Section::reduce(&mut sections);

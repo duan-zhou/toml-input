@@ -151,7 +151,7 @@ fn quote_struct_schema(
         let field_flatten = serde_parse::flatten(&attrs);
         let field_config = Config {
             enum_style: enum_style.or(config.enum_style.clone()),
-            option_style,
+            option_style: option_style.or(config.option_style.clone()),
             inner_default,
         };
         let enum_style_token = field_config.enum_style_token(quote! {field});
@@ -233,8 +233,7 @@ struct StructRaw {
     attrs: Vec<Attribute>,
     data: ast::Data<VariantRaw, FieldRaw>,
     enum_style: Option<EnumStyle>,
-    #[darling(default)]
-    option_style: OptionStyle,
+    option_style: Option<OptionStyle>,
 }
 
 #[derive(Debug, Clone, FromField)]
@@ -244,8 +243,7 @@ struct FieldRaw {
     attrs: Vec<Attribute>,
     ty: Type,
     enum_style: Option<EnumStyle>,
-    #[darling(default)]
-    option_style: OptionStyle,
+    option_style: Option<OptionStyle>,
     inner_default: Option<String>,
 }
 
@@ -291,7 +289,7 @@ fn extract_inner_type(ty: &syn::Type) -> TokenStream {
 #[derive(Clone, Default)]
 struct Config {
     enum_style: Option<EnumStyle>,
-    option_style: OptionStyle,
+    option_style: Option<OptionStyle>,
     inner_default: Option<String>,
 }
 
@@ -307,10 +305,12 @@ impl Config {
     }
 
     fn option_style_token(&self, tag: TokenStream) -> TokenStream {
-        let option_style = &self.option_style;
-        let token = quote! {
-            #tag.config.option_style = #option_style;
-        };
+        let mut token = TokenStream::new();
+        if let Some(option_style) = &self.option_style {
+            token = quote! {
+                #tag.config.option_style = Some(#option_style);
+            };
+        }
         token
     }
 

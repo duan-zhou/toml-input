@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct TomlConfig {
     pub enum_style: Option<EnumStyle>,
-    pub option_style: OptionStyle,
+    pub option_style: Option<OptionStyle>,
     pub commented: bool,
 }
 
@@ -9,7 +9,7 @@ impl Default for TomlConfig {
     fn default() -> Self {
         TomlConfig {
             enum_style: None,
-            option_style: OptionStyle::default(),
+            option_style: None,
             commented: true,
         }
     }
@@ -19,6 +19,17 @@ impl TomlConfig {
     pub fn merge_parent(&mut self, parent: &TomlConfig) {
         if self.enum_style.is_none() {
             self.enum_style = parent.enum_style;
+        }
+        if self.option_style.is_none() {
+            self.option_style = parent.option_style;
+        }
+    }
+
+    pub fn is_none_skipped(&self) -> bool  {
+        if let Some(style) = self.option_style {
+            style.is_skip_none()
+        } else {
+            false
         }
     }
 }
@@ -59,8 +70,8 @@ impl EnumStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum OptionStyle {
-    #[default]
     SkipNone,
+    #[default]
     ExpandNone,
 }
 

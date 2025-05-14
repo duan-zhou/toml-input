@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    Schema, TomlValue, Value,
-    error::Error,
-    schema::{Meta, PrimSchema},
-    section::TomlContent,
-    value::{ArrayValue, PrimValue},
+    error::Error, schema::{Meta, PrimSchema}, section::TomlContent, value::{ArrayValue, PrimValue}, Schema, TomlValue, Value
 };
 use serde::Serialize;
 
@@ -91,8 +87,9 @@ impl<T: TomlInput> TomlInput for Vec<T> {
         Ok(schema)
     }
     fn into_value(self) -> Result<Value, Error> {
+        let schema = T::schema()?;
         let mut values = Vec::new();
-        let mut as_prim = false;
+        let mut as_prim = schema.is_prim();
         for item in self {
             let value = item.into_value()?;
             if as_prim || value.is_prim() || value.is_array() {

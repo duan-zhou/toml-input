@@ -133,6 +133,35 @@ b = [6, 7, 8]"
 }
 
 #[test]
+fn test_array_empty() {
+    /// comment `Test`
+    #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq, Default)]
+    struct Test {
+        /// comment `a`
+        a: i32,
+        /// comment `b`
+        b: Vec<usize>,
+    }
+
+    let test = Test {
+        a: 1,
+        b: vec![],
+    };
+    let res = test.clone().into_string().unwrap();
+    println!("{res}");
+    let text = "# comment `Test`
+
+# comment `a`
+a = 1
+# comment `b`
+b = []"
+        .to_string();
+    assert_eq!(res, text);
+    let test1: Test = toml::from_str(&text).unwrap();
+    assert_eq!(test, test1);
+}
+
+#[test]
 fn test_nested() {
     /// comment `Test`
     #[derive(Debug, Clone, TomlInput, Serialize, Deserialize, PartialEq, Default)]

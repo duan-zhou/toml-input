@@ -32,6 +32,12 @@ impl Block {
         self.value.is_none() && self.meta.config.commented
     }
 
+    pub fn is_none_skipped(&self) -> bool {
+        self.meta.is_option_type()
+            && self.meta.config.is_none_skipped()
+            && self.value.is_none()
+    }
+
     pub fn enum_is_expand(&self) -> bool {
         if !self.is_enum() {
             return false;
@@ -49,6 +55,9 @@ impl Block {
     }
 
     pub fn render(&self) -> Result<String, Error> {
+        if self.is_none_skipped() {
+            return Ok(String::new());
+        }
         let mut block_value = self.meta.inner_default.clone().flatten();
         let mut commented = self.meta.config.commented;
         if let Some(value) = self.value.clone() {

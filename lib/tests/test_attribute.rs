@@ -22,6 +22,19 @@ a = 2"
     assert_eq!(res, text);
     let test1: Test = toml::from_str(&text).unwrap();
     assert_eq!(test, test1);
+
+    let test = Test { a: 2, b: Some(3) };
+    let res = test.clone().into_string().unwrap();
+    let text = "# comment `Test`
+
+# comment `a`
+a = 2
+# comment `b`
+b = 3"
+        .to_string();
+    assert_eq!(res, text);
+    let test1: Test = toml::from_str(&text).unwrap();
+    assert_eq!(test, test1);
 }
 
 #[test]

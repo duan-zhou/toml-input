@@ -44,6 +44,15 @@ impl Section {
         commented
     }
 
+    pub fn is_none_skipped(&self) -> bool {
+        let mut skipped =
+            self.meta.is_option_type() && self.meta.config.is_none_skipped();
+        for block in &self.blocks {
+            skipped = skipped && block.is_none_skipped();
+        }
+        skipped
+    }
+
     pub fn assigned_to(&mut self, ident: impl AsRef<str>) {
         if self.is_value() {
             for block in &mut self.blocks {
@@ -75,6 +84,9 @@ impl Section {
     }
 
     pub fn render(&self) -> Result<String, Error> {
+        if self.is_none_skipped() {
+            return Ok(String::new());
+        }
         let comment = self.comment();
         let text = comment.render()?;
         let mut lines = Vec::new();
@@ -95,7 +107,10 @@ impl Section {
         };
         lines.push(format!("{bang}{}{}{}", left, self.key, right));
         for block in &self.blocks {
-            lines.push(block.render()?)
+            let line = block.render()?;
+            if line.trim().len() > 0 {
+                lines.push(line);
+            }
         }
         Ok(lines.join("\n"))
     }
@@ -169,7 +184,10 @@ impl TomlContent {
     pub fn render(&self) -> Result<String, Error> {
         let mut lines = Vec::new();
         for section in &self.sections {
-            lines.push(section.render()?);
+            let line = section.render()?;
+            if line.trim().len() > 0 {
+                lines.push(line);
+            }
         }
         Ok(lines.join("\n\n"))
     }
