@@ -152,8 +152,8 @@ fn test_fold() {
 
 # comment `a`
 a = 0
+# comment `b`
 # b = "A" | "B"
-# comment `B`
 b = "B""#;
     assert_eq!(res, text);
     let test1: Test = toml::from_str(res).unwrap();

@@ -143,10 +143,7 @@ fn test_array_empty() {
         b: Vec<usize>,
     }
 
-    let test = Test {
-        a: 1,
-        b: vec![],
-    };
+    let test = Test { a: 1, b: vec![] };
     let res = test.clone().into_string().unwrap();
     println!("{res}");
     let text = "# comment `Test`

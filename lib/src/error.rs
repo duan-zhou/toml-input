@@ -9,4 +9,6 @@ pub enum Error {
     RootMustStruct,
     #[error("enum no variant")]
     EnumEmpty,
+    #[error("enum style error: {0}")]
+    EnumStyleError(String),
 }

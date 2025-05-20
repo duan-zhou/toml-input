@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    BANG_COMMENT, ROOT_KEY, Value,
+    BANG_COMMENT, ROOT_KEY,
     block::Block,
     comment::{Comment, CommentType},
     error::Error,
@@ -45,8 +45,7 @@ impl Section {
     }
 
     pub fn is_none_skipped(&self) -> bool {
-        let mut skipped =
-            self.meta.is_option_type() && self.meta.config.is_none_skipped();
+        let mut skipped = self.meta.is_option_type() && self.meta.config.is_none_skipped();
         for block in &self.blocks {
             skipped = skipped && block.is_none_skipped();
         }
@@ -90,7 +89,7 @@ impl Section {
         let comment = self.comment();
         let text = comment.render()?;
         let mut lines = Vec::new();
-        if !text.is_empty() {
+        if !self.meta.config.is_comment_hidden() {
             lines.push(text);
         }
         let (left, right) = if self.is_root() {
@@ -108,7 +107,7 @@ impl Section {
         lines.push(format!("{bang}{}{}{}", left, self.key, right));
         for block in &self.blocks {
             let line = block.render()?;
-            if line.trim().len() > 0 {
+            if !line.is_empty() {
                 lines.push(line);
             }
         }
@@ -123,72 +122,5 @@ impl Section {
             CommentType::Section
         };
         comment
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TomlContent {
-    pub sections: Vec<Section>,
-}
-
-impl TomlContent {
-    pub fn merge_value(&mut self, value: Value) {
-        let values = value.flatten();
-        for value in &values {
-            if value.array_index.is_some() {
-                let section_key = util::key_parent(&value.key);
-                let mut new_section = None;
-                for section in &mut self.sections {
-                    if section.key != section_key {
-                        continue;
-                    }
-                    if section.array_index == value.array_index {
-                        new_section = None;
-                        break;
-                    }
-                    if new_section.is_none() {
-                        let mut section = section.clone();
-                        section.array_index = value.array_index;
-                        new_section = Some(section)
-                    }
-                }
-                if let Some(section) = new_section {
-                    self.sections.push(section);
-                }
-            }
-        }
-        for value in values {
-            'f0: for section in &mut self.sections {
-                if section.array_index != value.array_index {
-                    continue;
-                }
-                for block in &mut section.blocks {
-                    if block.key == value.key && value.value.is_some() {
-                        block.value = Some(value);
-                        break 'f0;
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn config_commented(&mut self, commented: bool) {
-        for section in &mut self.sections {
-            section.meta.config.commented = commented;
-            for block in &mut section.blocks {
-                block.meta.config.commented = commented;
-            }
-        }
-    }
-
-    pub fn render(&self) -> Result<String, Error> {
-        let mut lines = Vec::new();
-        for section in &self.sections {
-            let line = section.render()?;
-            if line.trim().len() > 0 {
-                lines.push(line);
-            }
-        }
-        Ok(lines.join("\n\n"))
     }
 }

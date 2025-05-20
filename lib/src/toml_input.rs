@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    error::Error, schema::{Meta, PrimSchema}, section::TomlContent, value::{ArrayValue, PrimValue}, Schema, TomlValue, Value
+    Schema, TomlContent, TomlValue, Value,
+    error::Error,
+    schema::{Meta, PrimSchema},
+    value::{ArrayValue, PrimValue},
 };
 use serde::Serialize;
 
@@ -22,6 +25,14 @@ pub trait TomlInput: Serialize + Sized {
         let value = self.into_value()?;
         content.merge_value(value);
         content.render()
+    }
+    fn into_content(self) -> Result<TomlContent, Error> {
+        let schema = Self::schema()?;
+        let sections = schema.flatten();
+        let mut content = TomlContent { sections };
+        let value = self.into_value()?;
+        content.merge_value(value);
+        Ok(content)
     }
 }
 
